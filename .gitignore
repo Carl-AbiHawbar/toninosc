@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+.expo-web-test/
+dist/
+web-build/
+expo-env.d.ts
+
+# Next.js (if added later)
+.next/
+out/
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+/ios
+/android
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS
+.DS_Store
+Thumbs.db
+*.pem
+
+# env
+.env
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
