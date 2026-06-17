@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -12,25 +13,27 @@ interface ScreenHeaderProps {
 
 export function ScreenHeader({ title, subtitle, showBack = true, rightAction }: ScreenHeaderProps) {
   const router = useRouter();
+  const { language, t, themeColors } = useApp();
+  const isArabic = language === 'ar';
 
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
         {showBack && router.canGoBack() ? (
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
+            <Text style={[styles.backText, { color: themeColors.primary }, isArabic && styles.rtlText]}>{t('back')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.backBtn} />
         )}
         {rightAction && (
           <TouchableOpacity onPress={rightAction.onPress}>
-            <Text style={styles.rightAction}>{rightAction.label}</Text>
+            <Text style={[styles.rightAction, { color: themeColors.primary }, isArabic && styles.rtlText]}>{rightAction.label}</Text>
           </TouchableOpacity>
         )}
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      <Text style={[styles.title, { color: themeColors.text }, isArabic && styles.rtlText]}>{title}</Text>
+      {subtitle && <Text style={[styles.subtitle, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{subtitle}</Text>}
     </View>
   );
 }
@@ -67,5 +70,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
     marginTop: 4,
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

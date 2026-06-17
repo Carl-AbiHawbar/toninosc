@@ -19,6 +19,9 @@ export const mockInvoices: Invoice[] = [
     tax: 47.6,
     grandTotal: 538.6,
     paymentStatus: 'paid',
+    paidAmount: 538.6,
+    dueDate: '2026-06-25',
+    lastPaymentDate: '2026-06-15',
   },
   {
     id: 'invoice-2',
@@ -36,6 +39,8 @@ export const mockInvoices: Invoice[] = [
     tax: 22.05,
     grandTotal: 269.05,
     paymentStatus: 'unpaid',
+    paidAmount: 0,
+    dueDate: '2026-06-23',
   },
   {
     id: 'invoice-3',
@@ -52,6 +57,9 @@ export const mockInvoices: Invoice[] = [
     tax: 2.85,
     grandTotal: 37.85,
     paymentStatus: 'overdue',
+    paidAmount: 10,
+    dueDate: '2026-06-13',
+    lastPaymentDate: '2026-06-08',
   },
   {
     id: 'invoice-4',
@@ -70,6 +78,8 @@ export const mockInvoices: Invoice[] = [
     tax: 44.18,
     grandTotal: 529.18,
     paymentStatus: 'unpaid',
+    paidAmount: 0,
+    dueDate: '2026-06-30',
   },
 ];
 

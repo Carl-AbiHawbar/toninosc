@@ -1,5 +1,5 @@
 import { OrderStatus } from '@/types';
-import { colors } from '@/theme/colors';
+import { AppColors, colors } from '@/theme/colors';
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
   draft: 'Draft',
@@ -15,27 +15,27 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   problem: 'Problem',
 };
 
-export function getStatusColor(status: OrderStatus): string {
+export function getStatusColor(status: OrderStatus, palette: AppColors = colors): string {
   switch (status) {
     case 'draft':
-      return colors.statusDraft;
+      return palette.statusDraft;
     case 'submitted':
     case 'assigned_to_driver':
-      return colors.statusSubmitted;
+      return palette.statusSubmitted;
     case 'approved':
     case 'delivered':
     case 'paid':
-      return colors.statusApproved;
+      return palette.statusApproved;
     case 'preparing':
     case 'packed':
     case 'out_for_delivery':
-      return colors.statusPreparing;
+      return palette.statusPreparing;
     case 'invoiced':
-      return colors.info;
+      return palette.info;
     case 'problem':
-      return colors.statusProblem;
+      return palette.statusProblem;
     default:
-      return colors.textSecondary;
+      return palette.textSecondary;
   }
 }
 
@@ -50,6 +50,19 @@ export function formatDate(dateStr: string): string {
     month: 'short',
     year: 'numeric',
   });
+}
+
+export function getDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function getMonthKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
 export function generateOrderNumber(): string {
@@ -72,17 +85,17 @@ export function getInventoryStatusLabel(status: string): string {
   }
 }
 
-export function getInventoryStatusColor(status: string): string {
+export function getInventoryStatusColor(status: string, palette: AppColors = colors): string {
   switch (status) {
     case 'ok':
-      return colors.success;
+      return palette.success;
     case 'low':
-      return colors.warning;
+      return palette.warning;
     case 'critical':
-      return colors.error;
+      return palette.error;
     case 'expiring_soon':
-      return colors.warning;
+      return palette.warning;
     default:
-      return colors.textSecondary;
+      return palette.textSecondary;
   }
 }

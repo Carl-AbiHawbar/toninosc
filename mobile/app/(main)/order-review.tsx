@@ -12,7 +12,8 @@ import { formatCurrency } from '@/utils/helpers';
 
 export default function OrderReviewScreen() {
   const router = useRouter();
-  const { currentUser, cart, cartNotes, setCartNotes, getCartTotal, submitOrder, saveDraft } = useApp();
+  const { currentUser, cart, cartNotes, getCartTotal, submitOrder, saveDraft, language, themeColors, t } = useApp();
+  const isArabic = language === 'ar';
 
   const branch = mockBranches.find((b) => b.id === currentUser?.branchId);
   const total = getCartTotal();
@@ -33,28 +34,28 @@ export default function OrderReviewScreen() {
 
   if (cart.length === 0) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
         <View style={styles.container}>
-          <ScreenHeader title="Review Order" />
-          <Text style={styles.empty}>Your cart is empty.</Text>
-          <AppButton title="Go Back" onPress={() => router.back()} />
+          <ScreenHeader title={t('reviewOrder')} />
+          <Text style={[styles.empty, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('emptyCart')}</Text>
+          <AppButton title={t('goBack')} onPress={() => router.back()} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ScreenHeader title="Review Order" subtitle="Check before submitting" />
+        <ScreenHeader title={t('reviewOrder')} subtitle={t('reviewSubtitle')} />
 
         <AppCard style={styles.branchCard}>
-          <Text style={styles.branchLabel}>Delivering to</Text>
-          <Text style={styles.branchName}>{branch?.name ?? 'Your Branch'}</Text>
-          <Text style={styles.branchAddress}>{branch?.address}</Text>
+          <Text style={[styles.branchLabel, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('deliveringTo')}</Text>
+          <Text style={[styles.branchName, { color: themeColors.text }, isArabic && styles.rtlText]}>{branch?.name ?? t('yourBranch')}</Text>
+          <Text style={[styles.branchAddress, { color: themeColors.textSecondary }]}>{branch?.address}</Text>
         </AppCard>
 
-        <Text style={styles.sectionTitle}>Order Items</Text>
+        <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>{t('orderItems')}</Text>
         {cart.map((item) => {
           const stock = getStockItemById(item.stockItemId);
           if (!stock) return null;
@@ -65,13 +66,13 @@ export default function OrderReviewScreen() {
               <View style={styles.lineRow}>
                 <Text style={styles.lineEmoji}>{stock.imageEmoji}</Text>
                 <View style={styles.lineInfo}>
-                  <Text style={styles.lineName}>{stock.name}</Text>
-                  <Text style={styles.lineDetail}>
+                  <Text style={[styles.lineName, { color: themeColors.text }]}>{stock.name}</Text>
+                  <Text style={[styles.lineDetail, { color: themeColors.textSecondary }]}>
                     {item.quantity} {stock.unit} × {formatCurrency(stock.price)}
                   </Text>
                   {item.note && <Text style={styles.lineNote}>📝 {item.note}</Text>}
                 </View>
-                <Text style={styles.lineTotal}>{formatCurrency(lineTotal)}</Text>
+                <Text style={[styles.lineTotal, { color: themeColors.text }]}>{formatCurrency(lineTotal)}</Text>
               </View>
             </AppCard>
           );
@@ -79,21 +80,21 @@ export default function OrderReviewScreen() {
 
         {cartNotes ? (
           <AppCard style={styles.notesCard}>
-            <Text style={styles.notesLabel}>Order Notes</Text>
-            <Text style={styles.notesText}>{cartNotes}</Text>
+            <Text style={[styles.notesLabel, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('orderNotes')}</Text>
+            <Text style={[styles.notesText, { color: themeColors.text }]}>{cartNotes}</Text>
           </AppCard>
         ) : null}
 
         <AppCard style={styles.totalCard}>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Estimated Total</Text>
-            <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+            <Text style={[styles.totalLabel, { color: themeColors.text }]}>{t('estimatedTotal')}</Text>
+            <Text style={[styles.totalValue, { color: themeColors.primary }]}>{formatCurrency(total)}</Text>
           </View>
         </AppCard>
 
         <View style={styles.buttons}>
-          <AppButton title="Submit Order" icon="✅" onPress={handleSubmit} />
-          <AppButton title="Save Draft" onPress={handleSaveDraft} variant="outline" />
+          <AppButton title={t('submitOrder')} icon="✅" onPress={handleSubmit} />
+          <AppButton title={t('saveDraft')} onPress={handleSaveDraft} variant="outline" />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -204,5 +205,9 @@ const styles = StyleSheet.create({
   },
   buttons: {
     gap: spacing.md,
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

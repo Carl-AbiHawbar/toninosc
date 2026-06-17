@@ -1,4 +1,7 @@
 import { BranchOrder } from '@/types';
+import { getDateKey } from '@/utils/helpers';
+
+const demoToday = getDateKey();
 
 export const mockOrders: BranchOrder[] = [
   {
@@ -42,8 +45,8 @@ export const mockOrders: BranchOrder[] = [
     branchId: 'branch-1',
     createdByUserId: 'user-2',
     status: 'submitted',
-    createdAt: '2026-06-16T08:00:00',
-    updatedAt: '2026-06-16T08:00:00',
+    createdAt: `${demoToday}T08:00:00`,
+    updatedAt: `${demoToday}T08:00:00`,
     lines: [
       { id: 'line-9', stockItemId: 'stock-3', quantity: 6, unitPrice: 18 },
       { id: 'line-10', stockItemId: 'stock-7', quantity: 5, unitPrice: 8 },
@@ -56,8 +59,8 @@ export const mockOrders: BranchOrder[] = [
     branchId: 'branch-3',
     createdByUserId: 'user-4',
     status: 'preparing',
-    createdAt: '2026-06-16T07:00:00',
-    updatedAt: '2026-06-16T09:00:00',
+    createdAt: `${demoToday}T07:00:00`,
+    updatedAt: `${demoToday}T09:00:00`,
     lines: [
       { id: 'line-12', stockItemId: 'stock-1', quantity: 3, unitPrice: 45 },
       { id: 'line-13', stockItemId: 'stock-8', quantity: 4, unitPrice: 14 },
@@ -70,8 +73,8 @@ export const mockOrders: BranchOrder[] = [
     branchId: 'branch-4',
     createdByUserId: 'user-5',
     status: 'approved',
-    createdAt: '2026-06-16T06:00:00',
-    updatedAt: '2026-06-16T07:30:00',
+    createdAt: `${demoToday}T06:00:00`,
+    updatedAt: `${demoToday}T07:30:00`,
     lines: [
       { id: 'line-15', stockItemId: 'stock-1', quantity: 6, unitPrice: 45 },
       { id: 'line-16', stockItemId: 'stock-2', quantity: 10, unitPrice: 12 },

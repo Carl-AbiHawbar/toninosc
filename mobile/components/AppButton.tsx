@@ -7,6 +7,7 @@ import {
   TextStyle,
 } from 'react-native';
 import { colors } from '@/theme/colors';
+import { useApp } from '@/context/AppContext';
 import { borderRadius, spacing, touchTarget } from '@/theme/spacing';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'success' | 'warning' | 'danger';
@@ -22,15 +23,6 @@ interface AppButtonProps {
   icon?: string;
 }
 
-const variantStyles: Record<Variant, { bg: string; text: string; border?: string }> = {
-  primary: { bg: colors.primary, text: colors.white },
-  secondary: { bg: colors.text, text: colors.white },
-  outline: { bg: colors.card, text: colors.primary, border: colors.primary },
-  success: { bg: colors.success, text: colors.white },
-  warning: { bg: colors.warning, text: colors.white },
-  danger: { bg: colors.error, text: colors.white },
-};
-
 export function AppButton({
   title,
   onPress,
@@ -41,6 +33,15 @@ export function AppButton({
   textStyle,
   icon,
 }: AppButtonProps) {
+  const { themeColors } = useApp();
+  const variantStyles: Record<Variant, { bg: string; text: string; border?: string }> = {
+    primary: { bg: themeColors.primary, text: themeColors.white },
+    secondary: { bg: themeColors.text, text: themeColors.background },
+    outline: { bg: themeColors.card, text: themeColors.primary, border: themeColors.primary },
+    success: { bg: themeColors.success, text: themeColors.white },
+    warning: { bg: themeColors.warning, text: themeColors.white },
+    danger: { bg: themeColors.error, text: themeColors.white },
+  };
   const v = variantStyles[variant];
 
   return (
@@ -48,7 +49,7 @@ export function AppButton({
       style={[
         styles.button,
         { backgroundColor: v.bg, borderColor: v.border ?? v.bg },
-        variant === 'outline' && styles.outline,
+        variant === 'outline' && { borderWidth: 2, backgroundColor: themeColors.card },
         disabled && styles.disabled,
         style,
       ]}
@@ -75,10 +76,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  outline: {
-    borderWidth: 2,
-    backgroundColor: colors.card,
   },
   disabled: {
     opacity: 0.5,

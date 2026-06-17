@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { Alert, AlertSeverity } from '@/types';
+import { Alert } from '@/types';
 import { AppCard } from './AppCard';
 import { AppButton } from './AppButton';
-import { colors } from '@/theme/colors';
+import { useApp } from '@/context/AppContext';
 import { spacing } from '@/theme/spacing';
 
 interface AlertCardProps {
@@ -10,22 +10,22 @@ interface AlertCardProps {
   onAction?: () => void;
 }
 
-const severityColors: Record<AlertSeverity, string> = {
-  info: colors.info,
-  warning: colors.warning,
-  critical: colors.error,
-};
-
 export function AlertCard({ alert, onAction }: AlertCardProps) {
-  const color = severityColors[alert.severity];
+  const { themeColors } = useApp();
+  const color =
+    alert.severity === 'critical'
+      ? themeColors.error
+      : alert.severity === 'warning'
+        ? themeColors.warning
+        : themeColors.info;
 
   return (
     <AppCard style={[styles.card, { borderLeftColor: color, borderLeftWidth: 4 }]}>
       <View style={styles.header}>
         <View style={[styles.severityDot, { backgroundColor: color }]} />
-        <Text style={styles.title}>{alert.title}</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{alert.title}</Text>
       </View>
-      <Text style={styles.description}>{alert.description}</Text>
+      <Text style={[styles.description, { color: themeColors.textSecondary }]}>{alert.description}</Text>
       {onAction && (
         <AppButton
           title={alert.actionLabel}
@@ -57,12 +57,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.text,
     flex: 1,
   },
   description: {
     fontSize: 14,
-    color: colors.textSecondary,
     marginBottom: spacing.sm,
     lineHeight: 20,
   },

@@ -1,4 +1,4 @@
-export const colors = {
+export const lightColors = {
   primary: '#C62828',
   primaryDark: '#8E0000',
   text: '#1F1F1F',
@@ -19,3 +19,28 @@ export const colors = {
   statusDelivered: '#2E7D32',
   statusProblem: '#C62828',
 } as const;
+
+export const darkColors = {
+  primary: '#EF5350',
+  primaryDark: '#C62828',
+  text: '#F7F2EA',
+  textSecondary: '#C9BFB4',
+  background: '#171312',
+  card: '#241D1B',
+  border: '#3A302D',
+  success: '#66BB6A',
+  warning: '#FFA726',
+  error: '#EF5350',
+  info: '#64B5F6',
+  white: '#FFFFFF',
+  overlay: 'rgba(0,0,0,0.7)',
+  statusDraft: '#B0A7A0',
+  statusSubmitted: '#64B5F6',
+  statusApproved: '#66BB6A',
+  statusPreparing: '#FFA726',
+  statusDelivered: '#66BB6A',
+  statusProblem: '#EF5350',
+} as const;
+
+export const colors = lightColors;
+export type AppColors = Record<keyof typeof lightColors, string>;

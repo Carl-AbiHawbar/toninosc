@@ -12,33 +12,41 @@ import { formatCurrency, formatDate } from '@/utils/helpers';
 
 export default function MyOrdersScreen() {
   const router = useRouter();
-  const { currentUser, orders } = useApp();
+  const { currentUser, orders, offlineSync, language, themeColors, t } = useApp();
+  const isArabic = language === 'ar';
 
   const myOrders = orders
     .filter((o) => o.branchId === currentUser?.branchId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ScreenHeader title="My Orders" subtitle={`${myOrders.length} orders`} />
+        <ScreenHeader title={t('myOrders')} subtitle={t('ordersCount', { count: myOrders.length })} />
+        {offlineSync.some((item) => item.status === 'queued') && (
+          <AppCard style={styles.syncCard}>
+            <Text style={[styles.syncText, { color: themeColors.warning }, isArabic && styles.rtlText]}>
+              {isArabic ? 'توجد مسودات محفوظة محليا بانتظار المزامنة.' : 'Some drafts are saved locally and waiting to sync.'}
+            </Text>
+          </AppCard>
+        )}
 
         {myOrders.length === 0 ? (
-          <Text style={styles.empty}>No orders yet. Create your first order!</Text>
+          <Text style={[styles.empty, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('noOrders')}</Text>
         ) : (
           myOrders.map((order) => (
             <AppCard key={order.id} style={styles.orderCard}>
               <View style={styles.orderHeader}>
-                <Text style={styles.orderNum}>{order.orderNumber}</Text>
+                <Text style={[styles.orderNum, { color: themeColors.text }]}>{order.orderNumber}</Text>
                 <StatusBadge status={order.status} />
               </View>
-              <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+              <Text style={[styles.orderDate, { color: themeColors.textSecondary }]}>{formatDate(order.createdAt)}</Text>
               <View style={styles.orderMeta}>
-                <Text style={styles.metaText}>{getOrderItemCount(order)} items</Text>
-                <Text style={styles.metaTotal}>{formatCurrency(calculateOrderTotal(order))}</Text>
+                <Text style={[styles.metaText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('itemsCount', { count: getOrderItemCount(order) })}</Text>
+                <Text style={[styles.metaTotal, { color: themeColors.primary }]}>{formatCurrency(calculateOrderTotal(order))}</Text>
               </View>
               <AppButton
-                title="View Details"
+                title={t('viewDetails')}
                 onPress={() => router.push(`/(main)/order-detail/${order.id}`)}
                 variant="outline"
                 style={styles.viewBtn}
@@ -69,6 +77,14 @@ const styles = StyleSheet.create({
   },
   orderCard: {
     marginBottom: spacing.md,
+  },
+  syncCard: {
+    marginBottom: spacing.md,
+  },
+  syncText: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   orderHeader: {
     flexDirection: 'row',
@@ -105,5 +121,9 @@ const styles = StyleSheet.create({
   },
   viewBtnText: {
     fontSize: 15,
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

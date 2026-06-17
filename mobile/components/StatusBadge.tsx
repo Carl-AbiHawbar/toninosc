@@ -1,7 +1,12 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { OrderStatus, DeliveryStatus, PaymentStatus } from '@/types';
-import { getStatusColor, orderStatusLabels } from '@/utils/helpers';
-import { colors } from '@/theme/colors';
+import { DeliveryStatus, OrderStatus, PaymentStatus } from '@/types';
+import { getStatusColor } from '@/utils/helpers';
+import { useApp } from '@/context/AppContext';
+import {
+  deliveryStatusLabelsByLanguage,
+  orderStatusLabelsByLanguage,
+  paymentStatusLabelsByLanguage,
+} from '@/i18n/translations';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 type StatusType = OrderStatus | DeliveryStatus | PaymentStatus | string;
@@ -11,44 +16,28 @@ interface StatusBadgeProps {
   label?: string;
 }
 
-const deliveryLabels: Record<DeliveryStatus, string> = {
-  pending: 'Pending',
-  loaded: 'Loaded',
-  on_the_way: 'On the Way',
-  delivered: 'Delivered',
-  problem: 'Problem',
-};
-
-const paymentLabels: Record<PaymentStatus, string> = {
-  unpaid: 'Unpaid',
-  partial: 'Partial',
-  paid: 'Paid',
-  overdue: 'Overdue',
-};
-
-function getLabel(status: StatusType, label?: string): string {
-  if (label) return label;
-  if (status in orderStatusLabels) return orderStatusLabels[status as OrderStatus];
-  if (status in deliveryLabels) return deliveryLabels[status as DeliveryStatus];
-  if (status in paymentLabels) return paymentLabels[status as PaymentStatus];
-  return String(status);
-}
-
-function getBadgeColor(status: StatusType): string {
-  if (status in orderStatusLabels) return getStatusColor(status as OrderStatus);
-  if (status === 'delivered' || status === 'paid') return colors.success;
-  if (status === 'problem' || status === 'overdue') return colors.error;
-  if (status === 'on_the_way' || status === 'loaded' || status === 'partial') return colors.warning;
-  return colors.info;
-}
-
 export function StatusBadge({ status, label }: StatusBadgeProps) {
-  const bgColor = getBadgeColor(status);
-  const text = getLabel(status, label);
+  const { language, themeColors } = useApp();
+  const bgColor =
+    status in orderStatusLabelsByLanguage.en
+      ? getStatusColor(status as OrderStatus, themeColors)
+      : status === 'delivered' || status === 'paid'
+        ? themeColors.success
+        : status === 'problem' || status === 'overdue'
+          ? themeColors.error
+          : status === 'on_the_way' || status === 'loaded' || status === 'partial'
+            ? themeColors.warning
+            : themeColors.info;
+  const text =
+    label ??
+    orderStatusLabelsByLanguage[language][status as OrderStatus] ??
+    deliveryStatusLabelsByLanguage[language][status as DeliveryStatus] ??
+    paymentStatusLabelsByLanguage[language][status as PaymentStatus] ??
+    String(status);
 
   return (
     <View style={[styles.badge, { backgroundColor: bgColor + '20', borderColor: bgColor }]}>
-      <Text style={[styles.text, { color: bgColor }]}>{text}</Text>
+      <Text style={[styles.text, { color: bgColor }, language === 'ar' && styles.rtlText]}>{text}</Text>
     </View>
   );
 }
@@ -64,5 +53,8 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  rtlText: {
+    writingDirection: 'rtl',
   },
 });

@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { StockItem } from '@/types';
 import { AppCard } from './AppCard';
 import { QuantityStepper } from './QuantityStepper';
+import { useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
 import { borderRadius, spacing } from '@/theme/spacing';
 import { formatCurrency } from '@/utils/helpers';
@@ -25,27 +26,31 @@ export function ProductCard({
   hasNote,
   showWarning,
 }: ProductCardProps) {
+  const { language, t, themeColors } = useApp();
+  const isArabic = language === 'ar';
   const stockColor =
-    warehouseStock <= 5 ? colors.error : warehouseStock <= 15 ? colors.warning : colors.success;
+    warehouseStock <= 5 ? themeColors.error : warehouseStock <= 15 ? themeColors.warning : themeColors.success;
 
   return (
     <AppCard style={[styles.card, showWarning && styles.warningBorder]}>
       {showWarning && (
         <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>⚠️ Unusually high quantity</Text>
+          <Text style={[styles.warningText, { color: themeColors.warning }, isArabic && styles.rtlText]}>⚠️ {t('highQuantity')}</Text>
         </View>
       )}
       <View style={styles.row}>
-        <View style={styles.emojiBox}>
+        <View style={[styles.emojiBox, { backgroundColor: themeColors.background }]}>
           <Text style={styles.emoji}>{item.imageEmoji}</Text>
         </View>
         <View style={styles.info}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.unit}>{item.unit} · {formatCurrency(item.price)}</Text>
-          <View style={styles.stockRow}>
+          <Text style={[styles.name, { color: themeColors.text }, isArabic && styles.rtlText]}>{item.name}</Text>
+          <Text style={[styles.unit, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+            {item.unit} · {formatCurrency(item.price)}
+          </Text>
+          <View style={[styles.stockRow, isArabic && styles.rowRtl]}>
             <View style={[styles.stockDot, { backgroundColor: stockColor }]} />
-            <Text style={[styles.stockText, { color: stockColor }]}>
-              {warehouseStock} in warehouse
+            <Text style={[styles.stockText, { color: stockColor }, isArabic && styles.rtlText]}>
+              {t('inWarehouse', { count: warehouseStock })}
             </Text>
           </View>
         </View>
@@ -58,7 +63,7 @@ export function ProductCard({
         />
         {onNotePress && (
           <TouchableOpacity style={styles.noteBtn} onPress={onNotePress}>
-            <Text style={styles.noteBtnText}>{hasNote ? '📝 Note ✓' : '📝 Note'}</Text>
+            <Text style={[styles.noteBtnText, { color: themeColors.primary }]}>📝 {hasNote ? t('noteSaved') : t('note')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -88,6 +93,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     marginBottom: spacing.md,
+  },
+  rowRtl: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-end',
   },
   emojiBox: {
     width: 64,
@@ -143,5 +152,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

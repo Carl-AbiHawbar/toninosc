@@ -1,15 +1,13 @@
-import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
 import { mockBranches } from '@/data/mockBranches';
 import { getStockItemById } from '@/data/mockStockItems';
 import { getInventoryForItem } from '@/data/mockInventory';
-import { mockUsers } from '@/data/mockUsers';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { AppButton } from '@/components/AppButton';
 import { OrderStatus } from '@/types';
-import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 
@@ -21,17 +19,36 @@ const statusGroups: { label: string; statuses: OrderStatus[] }[] = [
   { label: 'Out for Delivery', statuses: ['out_for_delivery', 'assigned_to_driver'] },
 ];
 
+const statusGroupLabelsAr: Record<string, string> = {
+  'Pending Approval': 'بانتظار الموافقة',
+  Approved: 'تمت الموافقة',
+  Preparing: 'قيد التحضير',
+  Packed: 'مغلّف',
+  'Out for Delivery': 'خارج للتوصيل',
+};
+
 export default function WarehouseOrdersScreen() {
-  const { orders, updateOrderStatus } = useApp();
+  const { orders, updateOrderStatus, language, themeColors, t } = useApp();
 
   const handleAction = (orderId: string, status: OrderStatus) => {
     updateOrderStatus(orderId, status);
   };
 
+  const handleEditQuantities = () => {
+    Alert.alert(t('demoAction'), t('demoWarehouseEdit'));
+  };
+
+  const activeWarehouseOrders = orders.filter((o) =>
+    ['submitted', 'approved', 'preparing', 'packed'].includes(o.status)
+  );
+
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ScreenHeader title="Warehouse Orders" subtitle="Approve and prepare orders" />
+        <ScreenHeader
+          title={t('warehouseOrders')}
+          subtitle={language === 'ar' ? 'الموافقة على الطلبات وتجهيزها' : 'Approve and prepare orders'}
+        />
 
         {statusGroups.map((group) => {
           const groupOrders = orders.filter((o) => group.statuses.includes(o.status));
@@ -39,60 +56,60 @@ export default function WarehouseOrdersScreen() {
 
           return (
             <View key={group.label} style={styles.group}>
-              <Text style={styles.groupTitle}>{group.label} ({groupOrders.length})</Text>
+              <Text style={[styles.groupTitle, { color: themeColors.text }]}>
+                {language === 'ar' ? statusGroupLabelsAr[group.label] : group.label} ({groupOrders.length})
+              </Text>
               {groupOrders.map((order) => {
                 const branch = mockBranches.find((b) => b.id === order.branchId);
                 return (
                   <AppCard key={order.id} style={styles.orderCard}>
                     <View style={styles.orderHeader}>
-                      <View>
-                        <Text style={styles.orderNum}>{order.orderNumber}</Text>
-                        <Text style={styles.branchName}>{branch?.name}</Text>
-                        <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+                      <View style={styles.orderHeaderText}>
+                        <Text style={[styles.orderNum, { color: themeColors.text }]}>{order.orderNumber}</Text>
+                        <Text style={[styles.branchName, { color: themeColors.primary }]}>{branch?.name}</Text>
+                        <Text style={[styles.orderDate, { color: themeColors.textSecondary }]}>{formatDate(order.createdAt)}</Text>
                       </View>
                       <StatusBadge status={order.status} />
                     </View>
 
-                    <Text style={styles.pickLabel}>Pick List</Text>
+                    <Text style={[styles.pickLabel, { color: themeColors.textSecondary }]}>{t('pickList')}</Text>
                     {order.lines.map((line) => {
                       const stock = getStockItemById(line.stockItemId);
                       const inv = getInventoryForItem(line.stockItemId);
+                      const isLow = (inv?.currentStock ?? 0) < line.quantity;
                       return (
                         <View key={line.id} style={styles.pickRow}>
-                          <Text style={styles.pickItem}>
+                          <Text style={[styles.pickItem, { color: themeColors.text }]}>
                             {stock?.imageEmoji} {stock?.name}
                           </Text>
-                          <Text style={styles.pickQty}>×{line.quantity}</Text>
-                          <Text style={[
-                            styles.pickStock,
-                            (inv?.currentStock ?? 0) < line.quantity && styles.pickStockLow,
-                          ]}>
-                            {inv?.currentStock ?? 0} left
+                          <Text style={[styles.pickQty, { color: themeColors.text }]}>x{line.quantity}</Text>
+                          <Text style={[styles.pickStock, { color: isLow ? themeColors.error : themeColors.success }]}>
+                            {t('leftCount', { count: inv?.currentStock ?? 0 })}
                           </Text>
                         </View>
                       );
                     })}
 
-                    <Text style={styles.orderTotal}>
-                      Total: {formatCurrency(calculateOrderTotal(order))}
+                    <Text style={[styles.orderTotal, { color: themeColors.primary }]}>
+                      {t('total')}: {formatCurrency(calculateOrderTotal(order))}
                     </Text>
 
                     <View style={styles.actions}>
                       {order.status === 'submitted' && (
                         <>
-                          <AppButton title="Approve" onPress={() => handleAction(order.id, 'approved')} variant="success" style={styles.actionBtn} textStyle={styles.actionText} />
-                          <AppButton title="Edit Qty" onPress={() => {}} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
+                          <AppButton title={t('approve')} onPress={() => handleAction(order.id, 'approved')} variant="success" style={styles.actionBtn} textStyle={styles.actionText} />
+                          <AppButton title={t('editQty')} onPress={handleEditQuantities} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
                         </>
                       )}
                       {order.status === 'approved' && (
-                        <AppButton title="Mark Preparing" onPress={() => handleAction(order.id, 'preparing')} variant="warning" style={styles.actionBtn} />
+                        <AppButton title={t('markPreparing')} onPress={() => handleAction(order.id, 'preparing')} variant="warning" style={styles.actionBtn} />
                       )}
                       {order.status === 'preparing' && (
-                        <AppButton title="Mark Packed" onPress={() => handleAction(order.id, 'packed')} variant="secondary" style={styles.actionBtn} />
+                        <AppButton title={t('markPacked')} onPress={() => handleAction(order.id, 'packed')} variant="secondary" style={styles.actionBtn} />
                       )}
                       {order.status === 'packed' && (
                         <AppButton
-                          title="Assign Driver"
+                          title={t('assignDriver')}
                           onPress={() => {
                             handleAction(order.id, 'assigned_to_driver');
                             handleAction(order.id, 'out_for_delivery');
@@ -108,8 +125,8 @@ export default function WarehouseOrdersScreen() {
           );
         })}
 
-        {orders.filter((o) => ['submitted', 'approved', 'preparing', 'packed'].includes(o.status)).length === 0 && (
-          <Text style={styles.empty}>No pending warehouse orders.</Text>
+        {activeWarehouseOrders.length === 0 && (
+          <Text style={[styles.empty, { color: themeColors.textSecondary }]}>{t('noPendingWarehouseOrders')}</Text>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -117,24 +134,24 @@ export default function WarehouseOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
   container: { padding: spacing.lg, paddingBottom: spacing.xxl },
   group: { marginBottom: spacing.lg },
-  groupTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: spacing.sm },
+  groupTitle: { fontSize: 18, fontWeight: '700', marginBottom: spacing.sm },
   orderCard: { marginBottom: spacing.md },
-  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
-  orderNum: { fontSize: 17, fontWeight: '800', color: colors.text },
-  branchName: { fontSize: 15, color: colors.primary, fontWeight: '600' },
-  orderDate: { fontSize: 13, color: colors.textSecondary },
-  pickLabel: { fontSize: 14, fontWeight: '700', color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.sm },
-  pickRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  pickItem: { flex: 1, fontSize: 14, color: colors.text },
-  pickQty: { fontSize: 14, fontWeight: '700', color: colors.text, marginRight: spacing.sm, minWidth: 36 },
-  pickStock: { fontSize: 12, color: colors.success, fontWeight: '600' },
-  pickStockLow: { color: colors.error },
-  orderTotal: { fontSize: 16, fontWeight: '700', color: colors.primary, marginTop: spacing.sm },
+  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.sm },
+  orderHeaderText: { flex: 1 },
+  orderNum: { fontSize: 17, fontWeight: '800' },
+  branchName: { fontSize: 15, fontWeight: '600' },
+  orderDate: { fontSize: 13 },
+  pickLabel: { fontSize: 14, fontWeight: '700', marginBottom: spacing.xs, marginTop: spacing.sm },
+  pickRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, gap: spacing.sm },
+  pickItem: { flex: 1, fontSize: 14 },
+  pickQty: { fontSize: 14, fontWeight: '700', minWidth: 36 },
+  pickStock: { fontSize: 12, fontWeight: '600', minWidth: 54, textAlign: 'right' },
+  orderTotal: { fontSize: 16, fontWeight: '700', marginTop: spacing.sm },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
   actionBtn: { flex: 1, minWidth: '45%', minHeight: 44 },
   actionText: { fontSize: 14 },
-  empty: { fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xl },
+  empty: { fontSize: 16, textAlign: 'center', marginTop: spacing.xl },
 });

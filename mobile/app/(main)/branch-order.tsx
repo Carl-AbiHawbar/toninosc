@@ -33,6 +33,8 @@ export default function BranchOrderScreen() {
     getCartItemCount,
     loadLastOrderToCart,
   } = useApp();
+  const { language, themeColors, t } = useApp();
+  const isArabic = language === 'ar';
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
@@ -62,11 +64,11 @@ export default function BranchOrderScreen() {
   const cartTotal = getCartTotal();
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <View style={styles.container}>
-        <ScreenHeader title="Create Order" subtitle="Select items and quantities" />
+        <ScreenHeader title={t('createOrder')} subtitle={t('selectItems')} />
 
-        <SearchBar value={search} onChangeText={setSearch} placeholder="Search products..." />
+        <SearchBar value={search} onChangeText={setSearch} placeholder={t('searchProducts')} />
         <CategoryFilter
           categories={stockCategories}
           selected={category}
@@ -100,13 +102,13 @@ export default function BranchOrderScreen() {
         />
 
         {cartCount > 0 && (
-          <View style={styles.cartBar}>
+          <View style={[styles.cartBar, { backgroundColor: themeColors.card, borderTopColor: themeColors.border }]}>
             <View style={styles.cartInfo}>
-              <Text style={styles.cartCount}>{cartCount} items</Text>
-              <Text style={styles.cartTotal}>{formatCurrency(cartTotal)}</Text>
+              <Text style={[styles.cartCount, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('itemsCount', { count: cartCount })}</Text>
+              <Text style={[styles.cartTotal, { color: themeColors.primary }]}>{formatCurrency(cartTotal)}</Text>
             </View>
             <AppButton
-              title="Review Order"
+              title={t('reviewOrder')}
               onPress={() => router.push('/(main)/order-review')}
               style={styles.reviewBtn}
             />
@@ -115,24 +117,32 @@ export default function BranchOrderScreen() {
       </View>
 
       <Modal visible={!!noteModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Note</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: themeColors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>{t('addNote')}</Text>
             <TextInput
-              style={styles.noteInput}
+              style={[
+                styles.noteInput,
+                {
+                  borderColor: themeColors.border,
+                  color: themeColors.text,
+                  backgroundColor: themeColors.background,
+                },
+              ]}
               value={noteModal?.note ?? ''}
               onChangeText={(text) =>
                 setNoteModal((prev) => (prev ? { ...prev, note: text } : null))
               }
-              placeholder="Special instructions..."
+              placeholder={t('specialInstructions')}
+              placeholderTextColor={themeColors.textSecondary}
               multiline
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={() => setNoteModal(null)}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: themeColors.textSecondary }]}>{t('cancel')}</Text>
               </TouchableOpacity>
               <AppButton
-                title="Save"
+                title={t('save')}
                 onPress={() => {
                   if (noteModal) {
                     setCartItemNote(noteModal.stockItemId, noteModal.note);
@@ -166,9 +176,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.card,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
     padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -195,11 +203,9 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.card,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     padding: spacing.lg,
@@ -208,17 +214,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginBottom: spacing.md,
-    color: colors.text,
   },
   noteInput: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     minHeight: 100,
     fontSize: 16,
     textAlignVertical: 'top',
-    color: colors.text,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -233,5 +236,9 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     minWidth: 120,
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

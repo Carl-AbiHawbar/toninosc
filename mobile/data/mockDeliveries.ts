@@ -1,4 +1,5 @@
 import { Delivery } from '@/types';
+import { getDateKey } from '@/utils/helpers';
 
 export const mockDeliveries: Delivery[] = [
   {
@@ -28,7 +29,7 @@ export const mockDeliveries: Delivery[] = [
   },
   {
     id: 'delivery-2',
-    routeDate: '2026-06-16',
+    routeDate: getDateKey(),
     driverId: 'user-7',
     status: 'on_the_way',
     stops: [
@@ -70,7 +71,8 @@ export const mockDeliveries: Delivery[] = [
 ];
 
 export function getTodayDeliveryForDriver(driverId: string): Delivery | undefined {
+  const today = getDateKey();
   return mockDeliveries.find(
-    (d) => d.driverId === driverId && d.routeDate === '2026-06-16'
+    (d) => d.driverId === driverId && d.routeDate === today
   );
 }

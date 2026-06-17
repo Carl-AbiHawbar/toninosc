@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { Alert, View, Text, StyleSheet } from 'react-native';
 import { Invoice } from '@/types';
 import { AppCard } from './AppCard';
 import { StatusBadge } from './StatusBadge';
@@ -7,80 +7,109 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import { mockBranches } from '@/data/mockBranches';
+import { useApp } from '@/context/AppContext';
 
 interface InvoiceCardProps {
   invoice: Invoice;
   onPress?: () => void;
   onMarkPaid?: () => void;
+  onAddPayment?: () => void;
   showActions?: boolean;
 }
 
-export function InvoiceCard({ invoice, onPress, onMarkPaid, showActions }: InvoiceCardProps) {
+export function InvoiceCard({ invoice, onPress, onMarkPaid, onAddPayment, showActions }: InvoiceCardProps) {
   const branch = mockBranches.find((b) => b.id === invoice.branchId);
+  const { language, themeColors, t } = useApp();
+  const isArabic = language === 'ar';
+  const paidAmount = invoice.paidAmount ?? (invoice.paymentStatus === 'paid' ? invoice.grandTotal : 0);
+  const balance = Math.max(0, invoice.grandTotal - paidAmount);
+  const showDemoMessage = (action: string) => {
+    Alert.alert(t('demoAction'), t('demoFinance', { action }));
+  };
 
   return (
     <AppCard style={styles.card}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.logo}>🥞 Tonino</Text>
-          <Text style={styles.invoiceNum}>{invoice.invoiceNumber}</Text>
+          <Text style={[styles.logo, { color: themeColors.primary }]}>🥞 Tonino</Text>
+          <Text style={[styles.invoiceNum, { color: themeColors.textSecondary }]}>{invoice.invoiceNumber}</Text>
         </View>
         <StatusBadge status={invoice.paymentStatus} />
       </View>
 
-      <Text style={styles.branch}>{branch?.name ?? 'Unknown Branch'}</Text>
-      <Text style={styles.date}>{formatDate(invoice.date)}</Text>
+      <Text style={[styles.branch, { color: themeColors.text }]}>{branch?.name ?? 'Unknown Branch'}</Text>
+      <Text style={[styles.date, { color: themeColors.textSecondary }]}>{formatDate(invoice.date)}</Text>
+      {invoice.dueDate && (
+        <Text style={[styles.date, { color: balance > 0 ? themeColors.warning : themeColors.textSecondary }]}>
+          {isArabic ? 'تاريخ الاستحقاق' : 'Due'}: {formatDate(invoice.dueDate)}
+        </Text>
+      )}
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
 
       {invoice.lines.map((line) => (
         <View key={line.id} style={styles.lineRow}>
           <View style={styles.lineInfo}>
-            <Text style={styles.lineName}>{line.name}</Text>
-            <Text style={styles.lineQty}>{line.quantity} {line.unit} × {formatCurrency(line.unitPrice)}</Text>
+            <Text style={[styles.lineName, { color: themeColors.text }]}>{line.name}</Text>
+            <Text style={[styles.lineQty, { color: themeColors.textSecondary }]}>{line.quantity} {line.unit} × {formatCurrency(line.unitPrice)}</Text>
           </View>
-          <Text style={styles.lineTotal}>{formatCurrency(line.total)}</Text>
+          <Text style={[styles.lineTotal, { color: themeColors.text }]}>{formatCurrency(line.total)}</Text>
         </View>
       ))}
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
 
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Subtotal</Text>
-        <Text style={styles.totalValue}>{formatCurrency(invoice.subtotal)}</Text>
+        <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>Subtotal</Text>
+        <Text style={[styles.totalValue, { color: themeColors.text }]}>{formatCurrency(invoice.subtotal)}</Text>
       </View>
       {invoice.discount > 0 && (
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Discount</Text>
-          <Text style={styles.totalValue}>-{formatCurrency(invoice.discount)}</Text>
+          <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>Discount</Text>
+          <Text style={[styles.totalValue, { color: themeColors.text }]}>-{formatCurrency(invoice.discount)}</Text>
         </View>
       )}
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Delivery Fee</Text>
-        <Text style={styles.totalValue}>{formatCurrency(invoice.deliveryFee)}</Text>
+        <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>Delivery Fee</Text>
+        <Text style={[styles.totalValue, { color: themeColors.text }]}>{formatCurrency(invoice.deliveryFee)}</Text>
       </View>
       <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Tax / VAT</Text>
-        <Text style={styles.totalValue}>{formatCurrency(invoice.tax)}</Text>
+        <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>Tax / VAT</Text>
+        <Text style={[styles.totalValue, { color: themeColors.text }]}>{formatCurrency(invoice.tax)}</Text>
       </View>
-      <View style={[styles.totalRow, styles.grandTotal]}>
-        <Text style={styles.grandLabel}>Grand Total</Text>
-        <Text style={styles.grandValue}>{formatCurrency(invoice.grandTotal)}</Text>
+      <View style={[styles.totalRow, styles.grandTotal, { borderTopColor: themeColors.primary }]}>
+        <Text style={[styles.grandLabel, { color: themeColors.text }]}>Grand Total</Text>
+        <Text style={[styles.grandValue, { color: themeColors.primary }]}>{formatCurrency(invoice.grandTotal)}</Text>
       </View>
+      <View style={styles.totalRow}>
+        <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>{isArabic ? 'مدفوع' : 'Paid'}</Text>
+        <Text style={[styles.totalValue, { color: themeColors.success }]}>{formatCurrency(paidAmount)}</Text>
+      </View>
+      <View style={styles.totalRow}>
+        <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>{isArabic ? 'المتبقي' : 'Balance'}</Text>
+        <Text style={[styles.totalValue, { color: balance > 0 ? themeColors.warning : themeColors.success }]}>
+          {formatCurrency(balance)}
+        </Text>
+      </View>
+      {invoice.lastPaymentDate && (
+        <Text style={[styles.paymentHint, { color: themeColors.textSecondary }]}>
+          {isArabic ? 'آخر دفعة' : 'Last payment'}: {formatDate(invoice.lastPaymentDate)}
+        </Text>
+      )}
 
       {showActions && (
         <View style={styles.actions}>
-          <AppButton title="Download PDF" onPress={() => {}} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
+          <AppButton title={t('downloadPdf')} onPress={() => showDemoMessage(t('downloadPdf'))} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
           {invoice.paymentStatus !== 'paid' && onMarkPaid && (
-            <AppButton title="Mark as Paid" onPress={onMarkPaid} variant="success" style={styles.actionBtn} textStyle={styles.actionText} />
+            <AppButton title={t('markAsPaid')} onPress={onMarkPaid} variant="success" style={styles.actionBtn} textStyle={styles.actionText} />
           )}
-          <AppButton title="Add Payment" onPress={() => {}} variant="secondary" style={styles.actionBtn} textStyle={styles.actionText} />
-          <AppButton title="Credit Note" onPress={() => {}} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
+          <AppButton title={t('addPayment')} onPress={onAddPayment ?? (() => showDemoMessage(t('addPayment')))} variant="secondary" style={styles.actionBtn} textStyle={styles.actionText} />
+          <AppButton title={t('creditNote')} onPress={() => showDemoMessage(t('creditNote'))} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
         </View>
       )}
 
       {onPress && !showActions && (
-        <AppButton title="View Details" onPress={onPress} variant="outline" style={styles.viewBtn} textStyle={styles.actionText} />
+        <AppButton title={t('viewDetails')} onPress={onPress} variant="outline" style={styles.viewBtn} textStyle={styles.actionText} />
       )}
     </AppCard>
   );
@@ -171,6 +200,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: colors.primary,
+  },
+  paymentHint: {
+    fontSize: 12,
+    marginTop: 2,
   },
   actions: {
     marginTop: spacing.md,

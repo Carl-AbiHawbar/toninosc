@@ -1,6 +1,7 @@
-import { InventoryBalance, StockMovement } from '@/types';
+import { InventoryBalance, InventoryStatus, StockMovement } from '@/types';
+import { mockStockItems } from './mockStockItems';
 
-export const mockInventory: InventoryBalance[] = [
+const baseInventory: InventoryBalance[] = [
   { id: 'inv-1', stockItemId: 'stock-1', warehouseId: 'warehouse-1', currentStock: 12, minimumStock: 10, status: 'ok' },
   { id: 'inv-2', stockItemId: 'stock-2', warehouseId: 'warehouse-1', currentStock: 45, minimumStock: 20, status: 'ok' },
   { id: 'inv-3', stockItemId: 'stock-3', warehouseId: 'warehouse-1', currentStock: 8, minimumStock: 15, status: 'low' },
@@ -26,6 +27,30 @@ export const mockInventory: InventoryBalance[] = [
   { id: 'inv-23', stockItemId: 'stock-23', warehouseId: 'warehouse-1', currentStock: 12, minimumStock: 6, status: 'ok' },
   { id: 'inv-24', stockItemId: 'stock-24', warehouseId: 'warehouse-1', currentStock: 5, minimumStock: 10, status: 'low' },
   { id: 'inv-25', stockItemId: 'stock-25', warehouseId: 'warehouse-1', currentStock: 2, minimumStock: 8, status: 'critical' },
+];
+
+const baseInventoryIds = new Set(baseInventory.map((item) => item.stockItemId));
+
+function getDefaultStockLevel(index: number) {
+  const minimumStock = index % 4 === 0 ? 6 : 10;
+  const currentStock = minimumStock + 12 + (index % 5) * 4;
+  const status: InventoryStatus = currentStock <= minimumStock ? 'low' : 'ok';
+  return { currentStock, minimumStock, status };
+}
+
+export const mockInventory: InventoryBalance[] = [
+  ...baseInventory,
+  ...mockStockItems
+    .filter((item) => !baseInventoryIds.has(item.id))
+    .map((item, index) => {
+      const stockLevel = getDefaultStockLevel(index);
+      return {
+        id: `inv-${item.id.replace('stock-', '')}`,
+        stockItemId: item.id,
+        warehouseId: 'warehouse-1',
+        ...stockLevel,
+      };
+    }),
 ];
 
 export const mockStockMovements: StockMovement[] = [

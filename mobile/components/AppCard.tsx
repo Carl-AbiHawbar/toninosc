@@ -1,5 +1,5 @@
 import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useApp } from '@/context/AppContext';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 interface AppCardProps {
@@ -9,10 +9,22 @@ interface AppCardProps {
 }
 
 export function AppCard({ children, style, padding = 'md' }: AppCardProps) {
+  const { themeColors, themeMode } = useApp();
   const paddingValue = padding === 'sm' ? spacing.sm : padding === 'lg' ? spacing.lg : spacing.md;
 
   return (
-    <View style={[styles.card, { padding: paddingValue }, style]}>
+    <View
+      style={[
+        styles.card,
+        {
+          padding: paddingValue,
+          backgroundColor: themeColors.card,
+          borderColor: themeColors.border,
+          shadowOpacity: themeMode === 'dark' ? 0 : 0.06,
+        },
+        style,
+      ]}
+    >
       {children}
     </View>
   );
@@ -20,10 +32,8 @@ export function AppCard({ children, style, padding = 'md' }: AppCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,

@@ -1,5 +1,5 @@
 import { View, TextInput, StyleSheet } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useApp } from '@/context/AppContext';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 interface SearchBarProps {
@@ -9,14 +9,26 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ value, onChangeText, placeholder = 'Search...' }: SearchBarProps) {
+  const { language, themeColors } = useApp();
+  const isArabic = language === 'ar';
+
   return (
     <View style={styles.container}>
       <TextInput
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: themeColors.card,
+            borderColor: themeColors.border,
+            color: themeColors.text,
+            textAlign: isArabic ? 'right' : 'left',
+            writingDirection: isArabic ? 'rtl' : 'ltr',
+          },
+        ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={themeColors.textSecondary}
         clearButtonMode="while-editing"
       />
     </View>
@@ -28,13 +40,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 4,
     fontSize: 16,
-    color: colors.text,
   },
 });

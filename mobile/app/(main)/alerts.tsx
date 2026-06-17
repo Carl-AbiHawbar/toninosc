@@ -3,12 +3,11 @@ import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AlertCard } from '@/components/AlertCard';
-import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function AlertsScreen() {
   const router = useRouter();
-  const { alerts } = useApp();
+  const { alerts, language, themeColors, t } = useApp();
 
   const handleAlertAction = (alert: typeof alerts[0]) => {
     if (alert.type === 'low_stock' || alert.type === 'critical_stock' || alert.type === 'expiring_soon') {
@@ -28,9 +27,12 @@ export default function AlertsScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ScreenHeader title="Alerts" subtitle={`${alerts.length} active alerts`} />
+        <ScreenHeader
+          title={t('alerts')}
+          subtitle={language === 'ar' ? `${alerts.length} تنبيهات نشطة` : `${alerts.length} active alerts`}
+        />
 
         {sorted.map((alert) => (
           <AlertCard
@@ -45,6 +47,6 @@ export default function AlertsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
   container: { padding: spacing.lg, paddingBottom: spacing.xxl },
 });

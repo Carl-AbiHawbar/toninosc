@@ -1,19 +1,34 @@
-import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp, useDashboardStats } from '@/context/AppContext';
 import { AppButton } from '@/components/AppButton';
 import { DashboardCard } from '@/components/DashboardCard';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { AppCard } from '@/components/AppCard';
 import { mockBranches } from '@/data/mockBranches';
-import { roleLabels } from '@/data/mockUsers';
+import { roleLabelsByLanguage } from '@/i18n/translations';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
-import { formatCurrency } from '@/utils/helpers';
+import { formatCurrency, getDateKey } from '@/utils/helpers';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { currentUser, logout, deliveries } = useApp();
+  const {
+    currentUser,
+    logout,
+    deliveries,
+    language,
+    toggleLanguage,
+    themeMode,
+    themeColors,
+    toggleTheme,
+    offlineSync,
+    getVisibleNotifications,
+    markNotificationRead,
+    t,
+  } = useApp();
   const stats = useDashboardStats();
+  const isArabic = language === 'ar';
 
   if (!currentUser) {
     router.replace('/');
@@ -21,34 +36,36 @@ export default function HomeScreen() {
   }
 
   const branch = mockBranches.find((b) => b.id === currentUser.branchId);
+  const visibleNotifications = getVisibleNotifications().slice(0, 3);
+  const queuedSync = offlineSync.filter((item) => item.status === 'queued').length;
 
   const renderBranchManagerHome = () => (
     <View style={styles.buttonStack}>
-      <AppButton title="Create New Order" icon="🛒" onPress={() => router.push('/(main)/branch-order')} />
-      <AppButton title="Repeat Last Order" icon="🔄" onPress={() => router.push('/(main)/branch-order?repeat=true')} variant="secondary" />
-      <AppButton title="My Orders" icon="📋" onPress={() => router.push('/(main)/my-orders')} variant="outline" />
-      <AppButton title="My Bills" icon="🧾" onPress={() => router.push('/(main)/invoices')} variant="outline" />
-      <AppButton title="Contact Warehouse" icon="📞" onPress={() => router.push('/(main)/contact-warehouse')} variant="outline" />
+      <AppButton title={t('createNewOrder')} icon="🛒" onPress={() => router.push('/(main)/branch-order')} />
+      <AppButton title={t('repeatLastOrder')} icon="🔄" onPress={() => router.push('/(main)/branch-order?repeat=true')} variant="secondary" />
+      <AppButton title={t('myOrders')} icon="📋" onPress={() => router.push('/(main)/my-orders')} variant="outline" />
+      <AppButton title={t('myBills')} icon="🧾" onPress={() => router.push('/(main)/invoices')} variant="outline" />
+      <AppButton title={t('contactWarehouse')} icon="📞" onPress={() => router.push('/(main)/contact-warehouse')} variant="outline" />
     </View>
   );
 
   const renderAdminHome = () => (
     <>
       <View style={styles.dashboardGrid}>
-        <DashboardCard title="Today's Orders" value={stats.todayOrders} emoji="📦" accentColor={colors.primary} onPress={() => router.push('/(main)/admin-orders')} />
-        <DashboardCard title="Pending Approval" value={stats.pendingApproval} emoji="⏳" accentColor={colors.warning} onPress={() => router.push('/(main)/warehouse-orders')} />
-        <DashboardCard title="Low Stock Alerts" value={stats.lowStockAlerts} emoji="⚠️" accentColor={colors.error} onPress={() => router.push('/(main)/alerts')} />
-        <DashboardCard title="Out for Delivery" value={stats.outForDelivery} emoji="🚚" accentColor={colors.info} />
-        <DashboardCard title="Unpaid Invoices" value={stats.unpaidInvoices} emoji="💳" accentColor={colors.warning} onPress={() => router.push('/(main)/invoices')} />
-        <DashboardCard title="Ordered This Month" value={formatCurrency(stats.totalOrderedThisMonth)} emoji="📊" accentColor={colors.success} onPress={() => router.push('/(main)/reports')} />
+        <DashboardCard title={t('todaysOrders')} value={stats.todayOrders} emoji="📦" accentColor={colors.primary} onPress={() => router.push('/(main)/admin-orders')} />
+        <DashboardCard title={t('pendingApproval')} value={stats.pendingApproval} emoji="⏳" accentColor={colors.warning} onPress={() => router.push('/(main)/warehouse-orders')} />
+        <DashboardCard title={t('lowStockAlerts')} value={stats.lowStockAlerts} emoji="⚠️" accentColor={colors.error} onPress={() => router.push('/(main)/alerts')} />
+        <DashboardCard title={t('outForDelivery')} value={stats.outForDelivery} emoji="🚚" accentColor={colors.info} />
+        <DashboardCard title={t('unpaidInvoices')} value={stats.unpaidInvoices} emoji="💳" accentColor={colors.warning} onPress={() => router.push('/(main)/invoices')} />
+        <DashboardCard title={t('orderedThisMonth')} value={formatCurrency(stats.totalOrderedThisMonth)} emoji="📊" accentColor={colors.success} onPress={() => router.push('/(main)/reports')} />
       </View>
       <View style={styles.buttonStack}>
-        <AppButton title="All Branch Orders" onPress={() => router.push('/(main)/admin-orders')} />
-        <AppButton title="All Branches" onPress={() => router.push('/(main)/admin-branches')} variant="outline" />
-        <AppButton title="Inventory Overview" onPress={() => router.push('/(main)/inventory')} variant="outline" />
-        <AppButton title="Reports" onPress={() => router.push('/(main)/reports')} variant="outline" />
-        <AppButton title="Alerts" onPress={() => router.push('/(main)/alerts')} variant="outline" />
-        <AppButton title="Users" onPress={() => router.push('/(main)/settings')} variant="outline" />
+        <AppButton title={t('allBranchOrders')} onPress={() => router.push('/(main)/admin-orders')} />
+        <AppButton title={t('allBranches')} onPress={() => router.push('/(main)/admin-branches')} variant="outline" />
+        <AppButton title={t('inventoryOverview')} onPress={() => router.push('/(main)/inventory')} variant="outline" />
+        <AppButton title={t('reports')} onPress={() => router.push('/(main)/reports')} variant="outline" />
+        <AppButton title={t('alerts')} onPress={() => router.push('/(main)/alerts')} variant="outline" />
+        <AppButton title={t('users')} onPress={() => router.push('/(main)/settings')} variant="outline" />
       </View>
     </>
   );
@@ -56,36 +73,39 @@ export default function HomeScreen() {
   const renderWarehouseHome = () => (
     <>
       <View style={styles.dashboardGrid}>
-        <DashboardCard title="Pending Approval" value={stats.pendingApproval} emoji="📋" onPress={() => router.push('/(main)/warehouse-orders')} />
-        <DashboardCard title="Preparing" value={stats.preparingOrders} emoji="👨‍🍳" accentColor={colors.warning} onPress={() => router.push('/(main)/warehouse-orders')} />
-        <DashboardCard title="Low Stock" value={stats.lowStockAlerts} emoji="📉" accentColor={colors.error} onPress={() => router.push('/(main)/inventory')} />
-        <DashboardCard title="Expiring Soon" value={stats.expiringSoon} emoji="⏰" accentColor={colors.warning} onPress={() => router.push('/(main)/inventory')} />
+        <DashboardCard title={t('pendingApproval')} value={stats.pendingApproval} emoji="📋" onPress={() => router.push('/(main)/warehouse-orders')} />
+        <DashboardCard title={t('preparing')} value={stats.preparingOrders} emoji="👨‍🍳" accentColor={colors.warning} onPress={() => router.push('/(main)/warehouse-orders')} />
+        <DashboardCard title={t('lowStock')} value={stats.lowStockAlerts} emoji="📉" accentColor={colors.error} onPress={() => router.push('/(main)/inventory')} />
+        <DashboardCard title={t('expiringSoon')} value={stats.expiringSoon} emoji="⏰" accentColor={colors.warning} onPress={() => router.push('/(main)/inventory')} />
       </View>
       <View style={styles.buttonStack}>
-        <AppButton title="Warehouse Orders" onPress={() => router.push('/(main)/warehouse-orders')} />
-        <AppButton title="Inventory" onPress={() => router.push('/(main)/inventory')} variant="outline" />
-        <AppButton title="Alerts" onPress={() => router.push('/(main)/alerts')} variant="outline" />
+        <AppButton title={t('warehouseOrders')} onPress={() => router.push('/(main)/warehouse-orders')} />
+        <AppButton title={t('inventory')} onPress={() => router.push('/(main)/inventory')} variant="outline" />
+        <AppButton title={t('alerts')} onPress={() => router.push('/(main)/alerts')} variant="outline" />
       </View>
     </>
   );
 
   const renderDriverHome = () => {
+    const today = getDateKey();
     const delivery = deliveries.find(
-      (d) => d.driverId === currentUser.id && d.routeDate === '2026-06-16'
+      (d) => d.driverId === currentUser.id && d.routeDate === today
     );
     const totalStops = delivery?.stops.length ?? 0;
     const completed = delivery?.stops.filter((s) => s.status === 'delivered').length ?? 0;
 
     return (
       <>
-        <View style={styles.driverStats}>
-          <Text style={styles.driverStatBig}>{totalStops}</Text>
-          <Text style={styles.driverStatLabel}>Stops Today</Text>
-          <Text style={styles.driverStatSub}>{completed} completed</Text>
+        <View style={[styles.driverStats, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <Text style={[styles.driverStatBig, { color: themeColors.primary }]}>{totalStops}</Text>
+          <Text style={[styles.driverStatLabel, { color: themeColors.text }, isArabic && styles.rtlText]}>{t('stopsToday')}</Text>
+          <Text style={[styles.driverStatSub, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+            {t('completedCount', { count: completed })}
+          </Text>
         </View>
         <View style={styles.buttonStack}>
-          <AppButton title="Start Route" icon="🚚" onPress={() => router.push('/(main)/driver-deliveries')} />
-          <AppButton title="Today's Deliveries" onPress={() => router.push('/(main)/driver-deliveries')} variant="outline" />
+          <AppButton title={t('startRoute')} icon="🚚" onPress={() => router.push('/(main)/driver-deliveries')} />
+          <AppButton title={t('todaysDeliveries')} onPress={() => router.push('/(main)/driver-deliveries')} variant="outline" />
         </View>
       </>
     );
@@ -94,24 +114,24 @@ export default function HomeScreen() {
   const renderFinanceHome = () => (
     <>
       <View style={styles.dashboardGrid}>
-        <DashboardCard title="Unpaid Invoices" value={stats.unpaidInvoices} emoji="💳" accentColor={colors.warning} onPress={() => router.push('/(main)/invoices')} />
-        <DashboardCard title="Paid This Month" value={formatCurrency(stats.paidThisMonth)} emoji="✅" accentColor={colors.success} />
-        <DashboardCard title="Overdue Branches" value={stats.overdueBranches} emoji="⚠️" accentColor={colors.error} />
-        <DashboardCard title="Invoiced This Month" value={formatCurrency(stats.totalInvoicedThisMonth)} emoji="📊" />
+        <DashboardCard title={t('unpaidInvoices')} value={stats.unpaidInvoices} emoji="💳" accentColor={colors.warning} onPress={() => router.push('/(main)/invoices')} />
+        <DashboardCard title={t('paidThisMonth')} value={formatCurrency(stats.paidThisMonth)} emoji="✅" accentColor={colors.success} />
+        <DashboardCard title={t('overdueBranches')} value={stats.overdueBranches} emoji="⚠️" accentColor={colors.error} />
+        <DashboardCard title={t('invoicedThisMonth')} value={formatCurrency(stats.totalInvoicedThisMonth)} emoji="📊" />
       </View>
       <View style={styles.buttonStack}>
-        <AppButton title="Invoices & Bills" onPress={() => router.push('/(main)/invoices')} />
-        <AppButton title="Reports" onPress={() => router.push('/(main)/reports')} variant="outline" />
-        <AppButton title="Alerts" onPress={() => router.push('/(main)/alerts')} variant="outline" />
+        <AppButton title={t('invoicesAndBills')} onPress={() => router.push('/(main)/invoices')} />
+        <AppButton title={t('reports')} onPress={() => router.push('/(main)/reports')} variant="outline" />
+        <AppButton title={t('alerts')} onPress={() => router.push('/(main)/alerts')} variant="outline" />
       </View>
     </>
   );
 
   const renderSupplierHome = () => (
     <View style={styles.buttonStack}>
-      <AppButton title="Suggested Purchases" onPress={() => router.push('/(main)/reports')} />
-      <AppButton title="Low Stock Items" onPress={() => router.push('/(main)/inventory')} variant="outline" />
-      <AppButton title="Alerts" onPress={() => router.push('/(main)/alerts')} variant="outline" />
+      <AppButton title={t('suggestedPurchases')} onPress={() => router.push('/(main)/reports')} />
+      <AppButton title={t('lowStockItems')} onPress={() => router.push('/(main)/inventory')} variant="outline" />
+      <AppButton title={t('alerts')} onPress={() => router.push('/(main)/alerts')} variant="outline" />
     </View>
   );
 
@@ -135,18 +155,60 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
         <ScreenHeader
-          title={`Hello, ${currentUser.name.split(' ')[0]}!`}
+          title={t('hello', { name: currentUser.name.split(' ')[0] })}
           subtitle={
             currentUser.role === 'branch_manager' && branch
               ? branch.name
-              : roleLabels[currentUser.role]
+              : roleLabelsByLanguage[language][currentUser.role]
           }
           showBack={false}
-          rightAction={{ label: 'Logout', onPress: () => { logout(); router.replace('/'); } }}
+          rightAction={{ label: t('logout'), onPress: () => { logout(); router.replace('/'); } }}
         />
+        <View style={styles.toggleRow}>
+          <TouchableOpacity style={[styles.languageButton, { backgroundColor: themeColors.card, borderColor: themeColors.border }]} onPress={toggleLanguage}>
+            <Text style={[styles.languageText, { color: themeColors.primary }]}>
+              {isArabic ? t('switchToEnglish') : t('switchToArabic')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.languageButton, { backgroundColor: themeColors.card, borderColor: themeColors.border }]} onPress={toggleTheme}>
+            <Text style={[styles.languageText, { color: themeColors.primary }]}>
+              {themeMode === 'dark' ? t('lightMode') : t('darkMode')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {visibleNotifications.length > 0 && (
+          <View style={styles.notificationStack}>
+            {visibleNotifications.map((notification) => (
+              <TouchableOpacity
+                key={notification.id}
+                activeOpacity={0.82}
+                onPress={() => {
+                  markNotificationRead(notification.id);
+                  if (notification.targetRoute) router.push(notification.targetRoute as never);
+                }}
+              >
+                <AppCard style={[styles.notificationCard, !notification.read && { borderLeftColor: themeColors.primary, borderLeftWidth: 4 }]}>
+                  <Text style={[styles.notificationTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                    {notification.title}
+                  </Text>
+                  <Text style={[styles.notificationBody, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+                    {notification.body}
+                  </Text>
+                </AppCard>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        {queuedSync > 0 && (
+          <AppCard style={styles.syncCard}>
+            <Text style={[styles.syncText, { color: themeColors.warning }, isArabic && styles.rtlText]}>
+              {isArabic ? `${queuedSync} عناصر بانتظار المزامنة` : `${queuedSync} items waiting to sync`}
+            </Text>
+          </AppCard>
+        )}
         {renderHome()}
       </ScrollView>
     </SafeAreaView>
@@ -166,6 +228,23 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.md,
   },
+  languageButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+  },
+  languageText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
   dashboardGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -179,6 +258,30 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  notificationStack: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  notificationCard: {
+    marginBottom: 0,
+  },
+  notificationTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  notificationBody: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  syncCard: {
+    marginBottom: spacing.md,
+  },
+  syncText: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   driverStatBig: {
     fontSize: 64,
@@ -194,5 +297,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textSecondary,
     marginTop: 4,
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

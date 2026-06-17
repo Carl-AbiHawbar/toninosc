@@ -6,6 +6,10 @@ export type Role =
   | 'finance'
   | 'supplier';
 
+export type Language = 'en' | 'ar';
+
+export type ThemeMode = 'light' | 'dark';
+
 export type OrderStatus =
   | 'draft'
   | 'submitted'
@@ -206,6 +210,9 @@ export interface Invoice {
   tax: number;
   grandTotal: number;
   paymentStatus: PaymentStatus;
+  paidAmount?: number;
+  dueDate?: string;
+  lastPaymentDate?: string;
 }
 
 export interface Payment {
@@ -215,6 +222,35 @@ export interface Payment {
   date: string;
   method: string;
   note?: string;
+}
+
+export interface AuditEvent {
+  id: string;
+  entityType: 'order' | 'invoice' | 'inventory' | 'delivery' | 'user';
+  entityId: string;
+  action: string;
+  actorUserId: string;
+  createdAt: string;
+  note?: string;
+}
+
+export interface AppNotification {
+  id: string;
+  role: Role | 'all';
+  userId?: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
+  targetRoute?: string;
+}
+
+export interface OfflineSyncItem {
+  id: string;
+  type: 'draft_order' | 'status_update' | 'payment_update';
+  title: string;
+  createdAt: string;
+  status: 'queued' | 'synced';
 }
 
 export interface Alert {

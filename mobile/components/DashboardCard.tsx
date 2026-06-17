@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { AppCard } from './AppCard';
+import { useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
 import { borderRadius, spacing } from '@/theme/spacing';
 
@@ -20,13 +21,14 @@ export function DashboardCard({
   onPress,
   accentColor = colors.primary,
 }: DashboardCardProps) {
+  const { themeColors } = useApp();
   const content = (
     <AppCard style={styles.card}>
       <View style={[styles.accent, { backgroundColor: accentColor }]} />
       {emoji && <Text style={styles.emoji}>{emoji}</Text>}
-      <Text style={styles.value}>{value}</Text>
-      <Text style={styles.title}>{title}</Text>
-      {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      <Text style={[styles.value, { color: themeColors.text }]}>{value}</Text>
+      <Text style={[styles.title, { color: themeColors.textSecondary }]}>{title}</Text>
+      {subtitle && <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>{subtitle}</Text>}
     </AppCard>
   );
 

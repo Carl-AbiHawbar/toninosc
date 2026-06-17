@@ -1,4 +1,6 @@
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { useApp } from '@/context/AppContext';
+import { categoryLabelsByLanguage, inventoryFilterLabelsByLanguage } from '@/i18n/translations';
 import { colors } from '@/theme/colors';
 import { borderRadius, spacing } from '@/theme/spacing';
 
@@ -9,6 +11,10 @@ interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ categories, selected, onSelect }: CategoryFilterProps) {
+  const { language, themeColors } = useApp();
+  const getLabel = (cat: string) =>
+    categoryLabelsByLanguage[language][cat] ?? inventoryFilterLabelsByLanguage[language][cat] ?? cat;
+
   return (
     <ScrollView
       horizontal
@@ -21,11 +27,15 @@ export function CategoryFilter({ categories, selected, onSelect }: CategoryFilte
         return (
           <TouchableOpacity
             key={cat}
-            style={[styles.chip, isSelected && styles.chipSelected]}
+            style={[
+              styles.chip,
+              { backgroundColor: themeColors.card, borderColor: themeColors.border },
+              isSelected && { backgroundColor: themeColors.primary, borderColor: themeColors.primary },
+            ]}
             onPress={() => onSelect(cat)}
           >
-            <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-              {cat}
+            <Text style={[styles.chipText, { color: themeColors.text }, isSelected && styles.chipTextSelected]}>
+              {getLabel(cat)}
             </Text>
           </TouchableOpacity>
         );
@@ -47,9 +57,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   chipSelected: {
     backgroundColor: colors.primary,

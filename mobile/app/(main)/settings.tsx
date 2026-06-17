@@ -1,38 +1,90 @@
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useApp } from '@/context/AppContext';
-import { mockUsers, roleLabels } from '@/data/mockUsers';
+import { mockUsers } from '@/data/mockUsers';
+import { roleLabelsByLanguage } from '@/i18n/translations';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
+import { AppButton } from '@/components/AppButton';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { formatDate } from '@/utils/helpers';
 
 export default function SettingsScreen() {
-  const { currentUser } = useApp();
+  const { currentUser, auditEvents, language, toggleLanguage, themeMode, themeColors, toggleTheme, t } = useApp();
+  const isArabic = language === 'ar';
+  const canViewAllUsers = currentUser?.role === 'admin';
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ScreenHeader title="Settings & Users" subtitle="Placeholder — backend coming soon" />
+        <ScreenHeader title={t('settings')} subtitle={t('settingsSubtitle')} />
 
         <AppCard style={styles.profileCard}>
-          <Text style={styles.profileLabel}>Logged in as</Text>
-          <Text style={styles.profileName}>{currentUser?.name}</Text>
-          <Text style={styles.profileRole}>{currentUser ? roleLabels[currentUser.role] : ''}</Text>
-          <Text style={styles.profileEmail}>{currentUser?.email}</Text>
+          <Text style={[styles.profileLabel, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('language')}</Text>
+          <AppButton
+            title={isArabic ? t('switchToEnglish') : t('switchToArabic')}
+            onPress={toggleLanguage}
+            variant="outline"
+            style={styles.languageButton}
+            textStyle={styles.languageButtonText}
+          />
+          <Text style={[styles.profileLabel, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('darkMode')}</Text>
+          <AppButton
+            title={themeMode === 'dark' ? t('lightMode') : t('darkMode')}
+            onPress={toggleTheme}
+            variant="outline"
+            style={styles.languageButton}
+            textStyle={styles.languageButtonText}
+          />
         </AppCard>
 
-        <Text style={styles.sectionTitle}>All Users (Mock)</Text>
-        {mockUsers.map((user) => (
-          <AppCard key={user.id} style={styles.userCard}>
-            <Text style={styles.userName}>{user.name}</Text>
-            <Text style={styles.userRole}>{roleLabels[user.role]}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
-          </AppCard>
-        ))}
+        <AppCard style={styles.profileCard}>
+          <Text style={[styles.profileLabel, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('loggedInAs')}</Text>
+          <Text style={[styles.profileName, { color: themeColors.text }, isArabic && styles.rtlText]}>{currentUser?.name}</Text>
+          <Text style={[styles.profileRole, { color: themeColors.primary }, isArabic && styles.rtlText]}>
+            {currentUser ? roleLabelsByLanguage[language][currentUser.role] : ''}
+          </Text>
+          <Text style={[styles.profileEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{currentUser?.email}</Text>
+        </AppCard>
 
-        <Text style={styles.comingSoon}>
-          User management, permissions, and branch assignments will connect to the backend later.
-        </Text>
+        {canViewAllUsers ? (
+          <>
+            <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>{t('allUsers')}</Text>
+            {mockUsers.map((user) => (
+              <AppCard key={user.id} style={styles.userCard}>
+                <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>{user.name}</Text>
+                <Text style={[styles.userRole, { color: themeColors.primary }, isArabic && styles.rtlText]}>
+                  {roleLabelsByLanguage[language][user.role]}
+                </Text>
+                <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{user.email}</Text>
+              </AppCard>
+            ))}
+            <Text style={[styles.comingSoon, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('usersComingSoon')}</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>
+              {isArabic ? 'سجل التدقيق' : 'Audit Log'}
+            </Text>
+            {auditEvents.slice(0, 8).map((event) => {
+              const actor = mockUsers.find((user) => user.id === event.actorUserId);
+              return (
+                <AppCard key={event.id} style={styles.userCard}>
+                  <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>{event.action}</Text>
+                  <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+                    {formatDate(event.createdAt)} · {actor?.name ?? 'System'}
+                  </Text>
+                  {event.note && (
+                    <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{event.note}</Text>
+                  )}
+                </AppCard>
+              );
+            })}
+          </>
+        ) : (
+          <AppCard>
+            <Text style={[styles.comingSoon, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+              {isArabic ? 'إدارة المستخدمين متاحة للمدير فقط.' : 'User management is available to admins only.'}
+            </Text>
+          </AppCard>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -42,7 +94,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.lg, paddingBottom: spacing.xxl },
   profileCard: { marginBottom: spacing.lg },
-  profileLabel: { fontSize: 13, color: colors.textSecondary },
+  profileLabel: { fontSize: 13, color: colors.textSecondary, marginBottom: spacing.sm },
   profileName: { fontSize: 22, fontWeight: '800', color: colors.text, marginTop: 4 },
   profileRole: { fontSize: 15, color: colors.primary, fontWeight: '600', marginTop: 2 },
   profileEmail: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
@@ -52,4 +104,10 @@ const styles = StyleSheet.create({
   userRole: { fontSize: 14, color: colors.primary, marginTop: 2 },
   userEmail: { fontSize: 13, color: colors.textSecondary },
   comingSoon: { fontSize: 14, color: colors.textSecondary, fontStyle: 'italic', marginTop: spacing.lg, textAlign: 'center' },
+  languageButton: { minHeight: 44 },
+  languageButtonText: { fontSize: 15 },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 });

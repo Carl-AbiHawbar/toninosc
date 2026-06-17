@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '@/theme/colors';
+import { useApp } from '@/context/AppContext';
 import { borderRadius, spacing, touchTarget } from '@/theme/spacing';
 
 interface QuantityStepperProps {
@@ -17,18 +18,28 @@ export function QuantityStepper({
   min = 0,
   max = 999,
 }: QuantityStepperProps) {
+  const { themeColors } = useApp();
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.button, quantity <= min && styles.buttonDisabled]}
+        style={[
+          styles.button,
+          { backgroundColor: themeColors.primary },
+          quantity <= min && { backgroundColor: themeColors.border },
+        ]}
         onPress={onDecrease}
         disabled={quantity <= min}
       >
         <Text style={styles.buttonText}>−</Text>
       </TouchableOpacity>
-      <Text style={styles.quantity}>{quantity}</Text>
+      <Text style={[styles.quantity, { color: themeColors.text }]}>{quantity}</Text>
       <TouchableOpacity
-        style={[styles.button, quantity >= max && styles.buttonDisabled]}
+        style={[
+          styles.button,
+          { backgroundColor: themeColors.primary },
+          quantity >= max && { backgroundColor: themeColors.border },
+        ]}
         onPress={onIncrease}
         disabled={quantity >= max}
       >
