@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Alert, Text, View, ScrollView, StyleSheet, SafeAreaView, TextInput } from 'react-native';
+import { Alert, Text, View, ScrollView, StyleSheet, SafeAreaView, TextInput, TouchableOpacity } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
@@ -26,6 +27,10 @@ export default function ReceiveStockScreen() {
   const [supplierId, setSupplierId] = useState('');
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<ReceiveLine[]>([]);
+  const [datePicker, setDatePicker] = useState<{
+    stockItemId: string;
+    field: 'productionDate' | 'expiryDate';
+  } | null>(null);
 
   const selectedSupplier = suppliers.find((supplier) => supplier.id === supplierId);
   const lineCount = lines.reduce((sum, line) => sum + line.quantity, 0);
@@ -45,11 +50,6 @@ export default function ReceiveStockScreen() {
 
   const getLine = (stockItemId: string) => lines.find((line) => line.stockItemId === stockItemId);
 
-  const getDefaultBatchNumber = (stockItemId: string) => {
-    const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '');
-    return `TN-${stockItemId.replace('stock-', '').padStart(3, '0')}-${datePart}`;
-  };
-
   const updateQuantity = (stockItemId: string, quantity: number) => {
     setLines((prev) => {
       if (quantity <= 0) return prev.filter((line) => line.stockItemId !== stockItemId);
@@ -62,7 +62,7 @@ export default function ReceiveStockScreen() {
         {
           stockItemId,
           quantity,
-          batchNumber: getDefaultBatchNumber(stockItemId),
+          batchNumber: '',
           productionDate: '',
           expiryDate: '',
         },
@@ -72,6 +72,20 @@ export default function ReceiveStockScreen() {
 
   const updateLineField = (stockItemId: string, field: keyof Omit<ReceiveLine, 'stockItemId' | 'quantity'>, value: string) => {
     setLines((prev) => prev.map((line) => (line.stockItemId === stockItemId ? { ...line, [field]: value } : line)));
+  };
+
+  const getPickerDate = () => {
+    if (!datePicker) return new Date();
+    const value = getLine(datePicker.stockItemId)?.[datePicker.field];
+    return value ? new Date(`${value}T00:00:00`) : new Date();
+  };
+
+  const handleDateChange = (_event: unknown, selectedDate?: Date) => {
+    if (!datePicker) return;
+    if (selectedDate) {
+      updateLineField(datePicker.stockItemId, datePicker.field, selectedDate.toISOString().slice(0, 10));
+    }
+    setDatePicker(null);
   };
 
   const handleConfirm = async () => {
@@ -222,30 +236,32 @@ export default function ReceiveStockScreen() {
                     value={line.batchNumber}
                     onChangeText={(value) => updateLineField(item.id, 'batchNumber', value)}
                     placeholder={isArabic ? 'Batch number' : 'Batch number'}
-                    placeholderTextColor={themeColors.textSecondary}
+                    placeholderTextColor={themeColors.textSubtle}
                   />
                   {needsExpiry ? (
                     <View style={styles.dateRow}>
-                      <TextInput
+                      <TouchableOpacity
                         style={[
                           styles.dateInput,
-                          { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text },
+                          { backgroundColor: themeColors.background, borderColor: themeColors.border },
                         ]}
-                        value={line.productionDate}
-                        onChangeText={(value) => updateLineField(item.id, 'productionDate', value)}
-                        placeholder={isArabic ? 'Production YYYY-MM-DD' : 'Production YYYY-MM-DD'}
-                        placeholderTextColor={themeColors.textSecondary}
-                      />
-                      <TextInput
+                        onPress={() => setDatePicker({ stockItemId: item.id, field: 'productionDate' })}
+                      >
+                        <Text style={[styles.dateText, { color: line.productionDate ? themeColors.text : themeColors.textSubtle }]}>
+                          {line.productionDate || (isArabic ? 'Production date' : 'Production date')}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
                         style={[
                           styles.dateInput,
-                          { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text },
+                          { backgroundColor: themeColors.background, borderColor: themeColors.border },
                         ]}
-                        value={line.expiryDate}
-                        onChangeText={(value) => updateLineField(item.id, 'expiryDate', value)}
-                        placeholder={isArabic ? 'Expiry YYYY-MM-DD' : 'Expiry YYYY-MM-DD'}
-                        placeholderTextColor={themeColors.textSecondary}
-                      />
+                        onPress={() => setDatePicker({ stockItemId: item.id, field: 'expiryDate' })}
+                      >
+                        <Text style={[styles.dateText, { color: line.expiryDate ? themeColors.text : themeColors.textSubtle }]}>
+                          {line.expiryDate || (isArabic ? 'Expiry date' : 'Expiry date')}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   ) : (
                     <Text style={[styles.noExpiryText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
@@ -257,6 +273,14 @@ export default function ReceiveStockScreen() {
             </AppCard>
           );
         })}
+        {datePicker && (
+          <DateTimePicker
+            value={getPickerDate()}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -304,7 +328,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     minHeight: 44,
     paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
+  },
+  dateText: {
     fontSize: 13,
+    fontWeight: '700',
   },
   noExpiryText: { fontSize: 13, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center' },
