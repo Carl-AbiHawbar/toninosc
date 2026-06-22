@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
-import { ScreenHeader } from '@/components/ScreenHeader';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { DashboardCard } from '@/components/DashboardCard';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { SearchBar } from '@/components/SearchBar';
-import { AppButton } from '@/components/AppButton';
-import { useApp, calculateOrderTotal } from '@/context/AppContext';
-import { StockItem } from '@/types';
+import { calculateOrderTotal, useApp } from '@/context/AppContext';
+import { BranchOrder, StockItem } from '@/types';
 import { spacing } from '@/theme/spacing';
-import { formatCurrency, getMonthKey } from '@/utils/helpers';
+import { formatCurrency, formatDate, getMonthKey } from '@/utils/helpers';
 
 type BranchTotals = {
   id: string;
@@ -27,6 +27,7 @@ type MonthDetail = {
   orderCount: number;
   qty: number;
   value: number;
+  orders: BranchOrder[];
 };
 
 type ItemTotal = {
@@ -37,14 +38,11 @@ type ItemTotal = {
   value: number;
 };
 
-function getOrderQty(order: { lines: { quantity: number }[] }) {
+function getOrderQty(order: BranchOrder) {
   return order.lines.reduce((sum, line) => sum + line.quantity, 0);
 }
 
-function getItemTotals(
-  orders: { lines: { stockItemId: string; quantity: number; unitPrice: number }[] }[],
-  stockItems: StockItem[]
-) {
+function getItemTotals(orders: BranchOrder[], stockItems: StockItem[]) {
   const itemMap = new Map<string, ItemTotal>();
 
   orders.forEach((order) => {
@@ -71,20 +69,13 @@ export default function ReportsScreen() {
   const { orders, branches, stockItems, language, themeColors, t } = useApp();
   const [search, setSearch] = useState('');
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
   const isArabic = language === 'ar';
   const now = new Date();
   const monthKey = getMonthKey(now);
   const yearKey = String(now.getFullYear());
   const locale = isArabic ? 'ar-LB' : 'en-GB';
   const monthLabel = now.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
-  const showExportDemo = (type: 'PDF' | 'Excel') => {
-    Alert.alert(
-      isArabic ? 'تصدير التقرير' : 'Export report',
-      isArabic
-        ? `سيتم إنشاء ملف ${type} من هذه الأرقام عند ربط النظام بالخلفية.`
-        : `${type} export will generate from these totals once the backend is connected.`
-    );
-  };
 
   const report = useMemo(() => {
     const activeOrders = orders.filter((order) => order.status !== 'draft');
@@ -116,12 +107,15 @@ export default function ReportsScreen() {
       { monthQty: 0, monthValue: 0, yearQty: 0, yearValue: 0, yearOrders: 0 }
     );
 
-    const topItems = getItemTotals(
-      activeOrders.filter((order) => order.createdAt.startsWith(monthKey)),
-      stockItems
-    ).slice(0, 6);
-
-    return { activeOrders, branchTotals, allTotals, topItems };
+    return {
+      activeOrders,
+      branchTotals,
+      allTotals,
+      topItems: getItemTotals(
+        activeOrders.filter((order) => order.createdAt.startsWith(monthKey)),
+        stockItems
+      ).slice(0, 6),
+    };
   }, [branches, monthKey, orders, stockItems, yearKey]);
 
   const selectedBranch = report.branchTotals.find((branch) => branch.id === selectedBranchId);
@@ -136,7 +130,9 @@ export default function ReportsScreen() {
     const months: MonthDetail[] = Array.from({ length: 12 }, (_, index) => {
       const date = new Date(Number(yearKey), index, 1);
       const key = `${yearKey}-${String(index + 1).padStart(2, '0')}`;
-      const monthOrders = branchYearOrders.filter((order) => order.createdAt.startsWith(key));
+      const monthOrders = branchYearOrders
+        .filter((order) => order.createdAt.startsWith(key))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       return {
         key,
@@ -144,6 +140,7 @@ export default function ReportsScreen() {
         orderCount: monthOrders.length,
         qty: monthOrders.reduce((sum, order) => sum + getOrderQty(order), 0),
         value: monthOrders.reduce((sum, order) => sum + calculateOrderTotal(order), 0),
+        orders: monthOrders,
       };
     });
 
@@ -153,11 +150,18 @@ export default function ReportsScreen() {
     };
   }, [locale, report.activeOrders, selectedBranchId, stockItems, yearKey]);
 
+  const selectedMonth = selectedBranchDetails?.months.find((month) => month.key === selectedMonthKey);
+
   const filteredBranches = report.branchTotals.filter((branch) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
     return `${branch.name} ${branch.city}`.toLowerCase().includes(query);
   });
+
+  const backToBranches = () => {
+    setSelectedMonthKey(null);
+    setSelectedBranchId(null);
+  };
 
   if (selectedBranch && selectedBranchDetails) {
     return (
@@ -165,78 +169,99 @@ export default function ReportsScreen() {
         <ScrollView contentContainerStyle={styles.container}>
           <ScreenHeader
             title={selectedBranch.name}
-            subtitle={isArabic ? `تفاصيل طلبات سنة ${yearKey}` : `${yearKey} order details`}
+            subtitle={selectedMonth ? `${selectedMonth.label} ${yearKey}` : `${yearKey} order details`}
           />
+
           <AppButton
-            title={isArabic ? 'رجوع إلى كل الفروع' : 'Back to all branches'}
-            onPress={() => setSelectedBranchId(null)}
+            title={isArabic ? 'كل الفروع' : 'Back to all branches'}
+            onPress={backToBranches}
             variant="outline"
             style={styles.backButton}
             textStyle={styles.backButtonText}
           />
-          <View style={styles.exportRow}>
-            <AppButton title="PDF" onPress={() => showExportDemo('PDF')} variant="outline" style={styles.exportButton} textStyle={styles.exportText} />
-            <AppButton title="Excel" onPress={() => showExportDemo('Excel')} variant="outline" style={styles.exportButton} textStyle={styles.exportText} />
-          </View>
+          {selectedMonth && (
+            <AppButton
+              title={isArabic ? 'رجوع إلى الأشهر' : 'Back to monthly breakdown'}
+              onPress={() => setSelectedMonthKey(null)}
+              variant="outline"
+              style={styles.backButton}
+              textStyle={styles.backButtonText}
+            />
+          )}
 
           <View style={styles.dashboardGrid}>
-            <DashboardCard
-              title={isArabic ? 'طلبات السنة' : 'Year orders'}
-              value={selectedBranch.yearOrders}
-              accentColor={themeColors.info}
-            />
-            <DashboardCard
-              title={isArabic ? 'مواد السنة' : 'Year items'}
-              value={selectedBranch.yearQty}
-              accentColor={themeColors.primary}
-            />
-            <DashboardCard
-              title={isArabic ? 'قيمة السنة' : 'Year value'}
-              value={formatCurrency(selectedBranch.yearValue)}
-              accentColor={themeColors.success}
-            />
-            <DashboardCard
-              title={isArabic ? 'قيمة الشهر الحالي' : 'Current month value'}
-              value={formatCurrency(selectedBranch.monthValue)}
-              accentColor={themeColors.warning}
-            />
+            <DashboardCard title={isArabic ? 'طلبات السنة' : 'Year orders'} value={selectedBranch.yearOrders} accentColor={themeColors.info} />
+            <DashboardCard title={isArabic ? 'مواد السنة' : 'Year items'} value={selectedBranch.yearQty} accentColor={themeColors.primary} />
+            <DashboardCard title={isArabic ? 'قيمة السنة' : 'Year value'} value={formatCurrency(selectedBranch.yearValue)} accentColor={themeColors.success} />
+            <DashboardCard title={isArabic ? 'قيمة الشهر الحالي' : 'Current month value'} value={formatCurrency(selectedBranch.monthValue)} accentColor={themeColors.warning} />
           </View>
 
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-            {isArabic ? 'تفصيل كل شهر' : 'Monthly Breakdown'}
-          </Text>
-          {selectedBranchDetails.months.map((month) => (
-            <AppCard key={month.key} style={styles.monthCard}>
-              <View style={styles.monthHeader}>
-                <Text style={[styles.monthName, { color: themeColors.text }]}>{month.label}</Text>
-                <Text style={[styles.monthValue, { color: themeColors.primary }]}>
-                  {formatCurrency(month.value)}
-                </Text>
-              </View>
-              <View style={styles.monthMetaRow}>
-                <Text style={[styles.monthMeta, { color: themeColors.textSecondary }]}>
-                  {isArabic ? 'الطلبات' : 'Orders'}: {month.orderCount}
-                </Text>
-                <Text style={[styles.monthMeta, { color: themeColors.textSecondary }]}>
-                  {isArabic ? 'المواد' : 'Items'}: {month.qty}
-                </Text>
-              </View>
-            </AppCard>
-          ))}
-
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-            {isArabic ? 'المواد المطلوبة خلال السنة' : 'Items Ordered This Year'}
-          </Text>
-          {selectedBranchDetails.topItems.length === 0 ? (
-            <AppCard>
-              <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
-                {isArabic ? 'لا توجد طلبات لهذه السنة.' : 'No orders for this year.'}
+          {selectedMonth ? (
+            <>
+              <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+                {isArabic ? 'كل طلبات الشهر' : 'All orders this month'}
               </Text>
-            </AppCard>
+              {selectedMonth.orders.length === 0 ? (
+                <AppCard>
+                  <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
+                    {isArabic ? 'لا توجد طلبات في هذا الشهر.' : 'No orders in this month.'}
+                  </Text>
+                </AppCard>
+              ) : (
+                selectedMonth.orders.map((order) => (
+                  <OrderHistoryCard key={order.id} order={order} stockItems={stockItems} />
+                ))
+              )}
+            </>
           ) : (
-            selectedBranchDetails.topItems.map((item, index) => (
-              <ItemTotalRow key={item.id} item={item} index={index} />
-            ))
+            <>
+              <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+                {isArabic ? 'تفصيل كل شهر' : 'Monthly breakdown'}
+              </Text>
+              {selectedBranchDetails.months.map((month) => (
+                <TouchableOpacity
+                  key={month.key}
+                  activeOpacity={0.82}
+                  disabled={month.orderCount === 0}
+                  onPress={() => setSelectedMonthKey(month.key)}
+                >
+                  <AppCard style={[styles.monthCard, month.orderCount === 0 && styles.disabledCard]}>
+                    <View style={styles.monthHeader}>
+                      <Text style={[styles.monthName, { color: themeColors.text }]}>{month.label}</Text>
+                      <Text style={[styles.monthValue, { color: themeColors.primary }]}>{formatCurrency(month.value)}</Text>
+                    </View>
+                    <View style={styles.monthMetaRow}>
+                      <Text style={[styles.monthMeta, { color: themeColors.textSecondary }]}>
+                        {isArabic ? 'الطلبات' : 'Orders'}: {month.orderCount}
+                      </Text>
+                      <Text style={[styles.monthMeta, { color: themeColors.textSecondary }]}>
+                        {isArabic ? 'المواد' : 'Items'}: {month.qty}
+                      </Text>
+                    </View>
+                    {month.orderCount > 0 && (
+                      <Text style={[styles.openText, { color: themeColors.primary }]}>
+                        {isArabic ? 'فتح تاريخ الشهر' : 'Open month history'}
+                      </Text>
+                    )}
+                  </AppCard>
+                </TouchableOpacity>
+              ))}
+
+              <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+                {isArabic ? 'المواد المطلوبة خلال السنة' : 'Items ordered this year'}
+              </Text>
+              {selectedBranchDetails.topItems.length === 0 ? (
+                <AppCard>
+                  <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
+                    {isArabic ? 'لا توجد طلبات لهذه السنة.' : 'No orders for this year.'}
+                  </Text>
+                </AppCard>
+              ) : (
+                selectedBranchDetails.topItems.map((item, index) => (
+                  <ItemTotalRow key={item.id} item={item} index={index} />
+                ))
+              )}
+            </>
           )}
         </ScrollView>
       </SafeAreaView>
@@ -246,43 +271,20 @@ export default function ReportsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ScreenHeader
-          title={t('reports')}
-          subtitle={isArabic ? 'إجمالي الطلبات حسب الفرع' : 'Order totals by branch'}
-        />
+        <ScreenHeader title={t('reports')} subtitle={isArabic ? 'إجمالي الطلبات حسب الفرع' : 'Order totals by branch'} />
 
         <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-          {isArabic ? 'كل الفروع' : 'All Branches'}
+          {isArabic ? 'كل الفروع' : 'All branches'}
         </Text>
         <View style={styles.dashboardGrid}>
-          <DashboardCard
-            title={isArabic ? `مواد ${monthLabel}` : `${monthLabel} items`}
-            value={report.allTotals.monthQty}
-            accentColor={themeColors.primary}
-          />
-          <DashboardCard
-            title={isArabic ? `قيمة ${monthLabel}` : `${monthLabel} value`}
-            value={formatCurrency(report.allTotals.monthValue)}
-            accentColor={themeColors.success}
-          />
-          <DashboardCard
-            title={isArabic ? `طلبات سنة ${yearKey}` : `${yearKey} orders`}
-            value={report.allTotals.yearOrders}
-            accentColor={themeColors.info}
-          />
-          <DashboardCard
-            title={isArabic ? `قيمة سنة ${yearKey}` : `${yearKey} value`}
-            value={formatCurrency(report.allTotals.yearValue)}
-            accentColor={themeColors.warning}
-          />
-        </View>
-        <View style={styles.exportRow}>
-          <AppButton title="Export PDF" onPress={() => showExportDemo('PDF')} variant="outline" style={styles.exportButton} textStyle={styles.exportText} />
-          <AppButton title="Export Excel" onPress={() => showExportDemo('Excel')} variant="outline" style={styles.exportButton} textStyle={styles.exportText} />
+          <DashboardCard title={isArabic ? `مواد ${monthLabel}` : `${monthLabel} items`} value={report.allTotals.monthQty} accentColor={themeColors.primary} />
+          <DashboardCard title={isArabic ? `قيمة ${monthLabel}` : `${monthLabel} value`} value={formatCurrency(report.allTotals.monthValue)} accentColor={themeColors.success} />
+          <DashboardCard title={isArabic ? `طلبات سنة ${yearKey}` : `${yearKey} orders`} value={report.allTotals.yearOrders} accentColor={themeColors.info} />
+          <DashboardCard title={isArabic ? `قيمة سنة ${yearKey}` : `${yearKey} value`} value={formatCurrency(report.allTotals.yearValue)} accentColor={themeColors.warning} />
         </View>
 
         <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-          {isArabic ? 'ابحث واختر فرعا' : 'Search and Open a Branch'}
+          {isArabic ? 'ابحث واختر فرعا' : 'Search and open a branch'}
         </Text>
         <SearchBar
           value={search}
@@ -301,7 +303,10 @@ export default function ReportsScreen() {
             <TouchableOpacity
               key={branch.id}
               activeOpacity={0.82}
-              onPress={() => setSelectedBranchId(branch.id)}
+              onPress={() => {
+                setSelectedMonthKey(null);
+                setSelectedBranchId(branch.id);
+              }}
             >
               <AppCard style={styles.branchCard}>
                 <View style={styles.branchHeader}>
@@ -315,34 +320,10 @@ export default function ReportsScreen() {
                 </View>
 
                 <View style={styles.totalGrid}>
-                  <View style={styles.totalCell}>
-                    <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>
-                      {isArabic ? 'مواد الشهر' : 'Month items'}
-                    </Text>
-                    <Text style={[styles.totalValue, { color: themeColors.text }]}>{branch.monthQty}</Text>
-                  </View>
-                  <View style={styles.totalCell}>
-                    <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>
-                      {isArabic ? 'قيمة الشهر' : 'Month value'}
-                    </Text>
-                    <Text style={[styles.totalValue, { color: themeColors.primary }]}>
-                      {formatCurrency(branch.monthValue)}
-                    </Text>
-                  </View>
-                  <View style={styles.totalCell}>
-                    <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>
-                      {isArabic ? 'طلبات السنة' : 'Year orders'}
-                    </Text>
-                    <Text style={[styles.totalValue, { color: themeColors.text }]}>{branch.yearOrders}</Text>
-                  </View>
-                  <View style={styles.totalCell}>
-                    <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>
-                      {isArabic ? 'قيمة السنة' : 'Year value'}
-                    </Text>
-                    <Text style={[styles.totalValue, { color: themeColors.primary }]}>
-                      {formatCurrency(branch.yearValue)}
-                    </Text>
-                  </View>
+                  <TotalCell label={isArabic ? 'مواد الشهر' : 'Month items'} value={branch.monthQty} />
+                  <TotalCell label={isArabic ? 'قيمة الشهر' : 'Month value'} value={formatCurrency(branch.monthValue)} accent />
+                  <TotalCell label={isArabic ? 'طلبات السنة' : 'Year orders'} value={branch.yearOrders} />
+                  <TotalCell label={isArabic ? 'قيمة السنة' : 'Year value'} value={formatCurrency(branch.yearValue)} accent />
                 </View>
               </AppCard>
             </TouchableOpacity>
@@ -350,7 +331,7 @@ export default function ReportsScreen() {
         )}
 
         <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-          {isArabic ? `أكثر المواد طلبا في ${monthLabel}` : `Top Ordered Items in ${monthLabel}`}
+          {isArabic ? `أكثر المواد طلبا في ${monthLabel}` : `Top ordered items in ${monthLabel}`}
         </Text>
         {report.topItems.length === 0 ? (
           <AppCard>
@@ -368,6 +349,52 @@ export default function ReportsScreen() {
   );
 }
 
+function TotalCell({ label, value, accent = false }: { label: string; value: string | number; accent?: boolean }) {
+  const { themeColors } = useApp();
+  return (
+    <View style={styles.totalCell}>
+      <Text style={[styles.totalLabel, { color: themeColors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.totalValue, { color: accent ? themeColors.primary : themeColors.text }]}>{value}</Text>
+    </View>
+  );
+}
+
+function OrderHistoryCard({ order, stockItems }: { order: BranchOrder; stockItems: StockItem[] }) {
+  const { language, themeColors } = useApp();
+  const isArabic = language === 'ar';
+
+  return (
+    <AppCard style={styles.orderCard}>
+      <View style={styles.orderHeader}>
+        <View style={styles.orderTitleBlock}>
+          <Text style={[styles.orderNumber, { color: themeColors.text }]}>{order.orderNumber}</Text>
+          <Text style={[styles.orderDate, { color: themeColors.textSecondary }]}>{formatDate(order.createdAt)}</Text>
+        </View>
+        <Text style={[styles.orderTotal, { color: themeColors.primary }]}>{formatCurrency(calculateOrderTotal(order))}</Text>
+      </View>
+
+      {order.lines.map((line) => {
+        const stock = stockItems.find((item) => item.id === line.stockItemId);
+        return (
+          <View key={line.id} style={styles.orderLineRow}>
+            <Text style={[styles.orderLineName, { color: themeColors.text }]}>{stock?.name ?? line.stockItemId}</Text>
+            <Text style={[styles.orderLineQty, { color: themeColors.textSecondary }]}>
+              {line.quantity} {stock?.unit ?? ''} x {formatCurrency(line.unitPrice)}
+            </Text>
+          </View>
+        );
+      })}
+
+      {order.notes ? (
+        <Text style={[styles.orderNote, { color: themeColors.textSecondary }]}>{order.notes}</Text>
+      ) : null}
+      <Text style={[styles.orderStatus, { color: themeColors.textSecondary }]}>
+        {isArabic ? 'الحالة' : 'Status'}: {order.status.replace(/_/g, ' ')}
+      </Text>
+    </AppCard>
+  );
+}
+
 function ItemTotalRow({ item, index }: { item: ItemTotal; index: number }) {
   const { themeColors } = useApp();
 
@@ -381,9 +408,7 @@ function ItemTotalRow({ item, index }: { item: ItemTotal; index: number }) {
             {item.qty} {item.unit}
           </Text>
         </View>
-        <Text style={[styles.itemValue, { color: themeColors.text }]}>
-          {formatCurrency(item.value)}
-        </Text>
+        <Text style={[styles.itemValue, { color: themeColors.text }]}>{formatCurrency(item.value)}</Text>
       </View>
     </AppCard>
   );
@@ -403,19 +428,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  backButton: { minHeight: 44, marginBottom: spacing.md },
+  backButton: { minHeight: 44, marginBottom: spacing.sm },
   backButtonText: { fontSize: 14 },
-  exportRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  exportButton: {
-    flex: 1,
-    minHeight: 44,
-    paddingVertical: spacing.sm,
-  },
-  exportText: { fontSize: 14 },
   branchCard: { marginBottom: spacing.sm },
   branchHeader: {
     flexDirection: 'row',
@@ -427,7 +441,7 @@ const styles = StyleSheet.create({
   branchTitleBlock: { flex: 1 },
   branchName: { fontSize: 17, fontWeight: '800' },
   branchCity: { fontSize: 13, marginTop: 2 },
-  openText: { fontSize: 14, fontWeight: '800' },
+  openText: { fontSize: 13, fontWeight: '800', marginTop: spacing.sm },
   totalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -440,6 +454,7 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 12, fontWeight: '600', marginBottom: 2 },
   totalValue: { fontSize: 17, fontWeight: '800' },
   monthCard: { marginBottom: spacing.sm },
+  disabledCard: { opacity: 0.55 },
   monthHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -450,6 +465,27 @@ const styles = StyleSheet.create({
   monthValue: { fontSize: 15, fontWeight: '800' },
   monthMetaRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   monthMeta: { fontSize: 13, fontWeight: '600' },
+  orderCard: { marginBottom: spacing.sm },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  orderTitleBlock: { flex: 1 },
+  orderNumber: { fontSize: 16, fontWeight: '800' },
+  orderDate: { fontSize: 13, marginTop: 2 },
+  orderTotal: { fontSize: 15, fontWeight: '800' },
+  orderLineRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingVertical: 3,
+  },
+  orderLineName: { flex: 1, fontSize: 14, fontWeight: '600' },
+  orderLineQty: { fontSize: 13, fontWeight: '600' },
+  orderNote: { fontSize: 13, marginTop: spacing.sm },
+  orderStatus: { fontSize: 12, fontWeight: '700', marginTop: spacing.sm },
   itemCard: { marginBottom: spacing.sm },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   rank: { fontSize: 18, fontWeight: '900', width: 26, textAlign: 'center' },
