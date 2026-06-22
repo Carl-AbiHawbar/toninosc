@@ -20,7 +20,7 @@ export function AppCard({ children, style, padding = 'md' }: AppCardProps) {
           padding: paddingValue,
           backgroundColor: themeColors.card,
           borderColor: themeColors.border,
-          shadowOpacity: themeMode === 'dark' ? 0 : 0.06,
+          shadowOpacity: themeMode === 'dark' ? 0 : 0.025,
         },
         style,
       ]}
@@ -35,9 +35,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.025,
+    shadowRadius: 3,
+    elevation: 1,
   },
 });

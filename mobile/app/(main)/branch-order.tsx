@@ -11,8 +11,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useApp } from '@/context/AppContext';
-import { mockStockItems, stockCategories } from '@/data/mockStockItems';
-import { getInventoryForItem } from '@/data/mockInventory';
+import { stockCategories } from '@/data/mockStockItems';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SearchBar } from '@/components/SearchBar';
 import { CategoryFilter } from '@/components/CategoryFilter';
@@ -32,6 +31,8 @@ export default function BranchOrderScreen() {
     getCartTotal,
     getCartItemCount,
     loadLastOrderToCart,
+    inventory,
+    stockItems,
   } = useApp();
   const { language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
@@ -47,12 +48,12 @@ export default function BranchOrderScreen() {
   }, [repeat, loadLastOrderToCart]);
 
   const filteredItems = useMemo(() => {
-    return mockStockItems.filter((item) => {
+    return stockItems.filter((item) => {
       const matchesCategory = category === 'All' || item.category === category;
       const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [category, search]);
+  }, [category, search, stockItems]);
 
   const getQuantity = (stockItemId: string) =>
     cart.find((c) => c.stockItemId === stockItemId)?.quantity ?? 0;
@@ -80,7 +81,7 @@ export default function BranchOrderScreen() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
             const qty = getQuantity(item.id);
-            const inv = getInventoryForItem(item.id);
+            const inv = inventory.find((balance) => balance.stockItemId === item.id);
             const showWarning = qty > item.averageOrderQty * 3;
 
             return (

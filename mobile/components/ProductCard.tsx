@@ -35,7 +35,7 @@ export function ProductCard({
     <AppCard style={[styles.card, showWarning && styles.warningBorder]}>
       {showWarning && (
         <View style={styles.warningBanner}>
-          <Text style={[styles.warningText, { color: themeColors.warning }, isArabic && styles.rtlText]}>⚠️ {t('highQuantity')}</Text>
+          <Text style={[styles.warningText, { color: themeColors.warning }, isArabic && styles.rtlText]}>! {t('highQuantity')}</Text>
         </View>
       )}
       <View style={styles.row}>
@@ -45,7 +45,7 @@ export function ProductCard({
         <View style={styles.info}>
           <Text style={[styles.name, { color: themeColors.text }, isArabic && styles.rtlText]}>{item.name}</Text>
           <Text style={[styles.unit, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
-            {item.unit} · {formatCurrency(item.price)}
+            {item.unit} - {formatCurrency(item.price)}
           </Text>
           <View style={[styles.stockRow, isArabic && styles.rowRtl]}>
             <View style={[styles.stockDot, { backgroundColor: stockColor }]} />
@@ -63,7 +63,7 @@ export function ProductCard({
         />
         {onNotePress && (
           <TouchableOpacity style={styles.noteBtn} onPress={onNotePress}>
-            <Text style={[styles.noteBtnText, { color: themeColors.primary }]}>📝 {hasNote ? t('noteSaved') : t('note')}</Text>
+            <Text style={[styles.noteBtnText, { color: themeColors.primary }]}>{hasNote ? t('noteSaved') : t('note')}</Text>
           </TouchableOpacity>
         )}
       </View>

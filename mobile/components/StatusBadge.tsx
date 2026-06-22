@@ -35,8 +35,19 @@ export function StatusBadge({ status, label }: StatusBadgeProps) {
     paymentStatusLabelsByLanguage[language][status as PaymentStatus] ??
     String(status);
 
+  const softBg =
+    bgColor === themeColors.success
+      ? themeColors.successSoft
+      : bgColor === themeColors.warning
+        ? themeColors.warningSoft
+        : bgColor === themeColors.error
+          ? themeColors.errorSoft
+          : bgColor === themeColors.info
+            ? themeColors.infoSoft
+            : themeColors.surfaceMuted;
+
   return (
-    <View style={[styles.badge, { backgroundColor: bgColor + '20', borderColor: bgColor }]}>
+    <View style={[styles.badge, { backgroundColor: softBg, borderColor: bgColor }]}>
       <Text style={[styles.text, { color: bgColor }, language === 'ar' && styles.rtlText]}>{text}</Text>
     </View>
   );
@@ -51,7 +62,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   text: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   rtlText: {

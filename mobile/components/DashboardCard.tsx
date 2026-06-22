@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   },
   card: {
     overflow: 'hidden',
-    minHeight: 120,
+    minHeight: 108,
   },
   accent: {
     position: 'absolute',
@@ -62,18 +62,18 @@ const styles = StyleSheet.create({
     borderTopRightRadius: borderRadius.lg,
   },
   emoji: {
-    fontSize: 28,
+    fontSize: 22,
     marginBottom: spacing.xs,
   },
   value: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
     color: colors.text,
     marginBottom: 4,
   },
   title: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: colors.textSecondary,
   },
   subtitle: {

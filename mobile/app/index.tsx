@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { mockUsers, roleEmojis } from '@/data/mockUsers';
+import { mockBranches } from '@/data/mockBranches';
 import { roleLabelsByLanguage } from '@/i18n/translations';
 import { Role } from '@/types';
 import { colors } from '@/theme/colors';
@@ -40,6 +41,18 @@ export default function LoginScreen() {
     router.replace('/(main)/home');
   };
 
+  const getLoginDisplay = (user: (typeof mockUsers)[number]) => {
+    if (user.role !== 'branch_manager') {
+      return { title: user.name, subtitle: user.email };
+    }
+
+    const branch = mockBranches.find((item) => item.id === user.branchId);
+    return {
+      title: branch?.name ?? user.name,
+      subtitle: roleLabelsByLanguage[language].branch_manager,
+    };
+  };
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -56,8 +69,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.header}>
-          <Text style={styles.logo}>🥞</Text>
+        <View style={[styles.header, { borderColor: themeColors.border }]}>
           <Text style={[styles.appName, { color: themeColors.primary }]}>{t('appName')}</Text>
           <Text style={[styles.tagline, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('tagline')}</Text>
         </View>
@@ -74,24 +86,28 @@ export default function LoginScreen() {
               <Text style={[styles.roleLabel, { color: themeColors.text }, isArabic && styles.rtlText]}>
                 {roleEmojis[role]} {roleLabelsByLanguage[language][role]}
               </Text>
-              {users.map((user) => (
-                <TouchableOpacity
-                  key={user.id}
-                  style={[
-                    styles.userCard,
-                    { backgroundColor: themeColors.card, borderColor: themeColors.border },
-                    isArabic && styles.userCardRtl,
-                  ]}
-                  onPress={() => handleSelectUser(user.id)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.userInfo}>
-                    <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>{user.name}</Text>
-                    <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{user.email}</Text>
-                  </View>
-                  <Text style={[styles.enterArrow, { color: themeColors.primary }]}>{t('enter')}</Text>
-                </TouchableOpacity>
-              ))}
+              {users.map((user) => {
+                const display = getLoginDisplay(user);
+
+                return (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={[
+                      styles.userCard,
+                      { backgroundColor: themeColors.card, borderColor: themeColors.border },
+                      isArabic && styles.userCardRtl,
+                    ]}
+                    onPress={() => handleSelectUser(user.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.userInfo}>
+                      <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>{display.title}</Text>
+                      <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{display.subtitle}</Text>
+                    </View>
+                    <Text style={[styles.enterArrow, { color: themeColors.primary }]}>{t('enter')}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           );
         })}
@@ -126,16 +142,14 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
     marginTop: spacing.lg,
-  },
-  logo: {
-    fontSize: 64,
-    marginBottom: spacing.sm,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
   },
   appName: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
     color: colors.primary,
   },
@@ -168,7 +182,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,

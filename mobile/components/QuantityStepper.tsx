@@ -31,7 +31,7 @@ export function QuantityStepper({
         onPress={onDecrease}
         disabled={quantity <= min}
       >
-        <Text style={styles.buttonText}>−</Text>
+        <Text style={styles.buttonText}>-</Text>
       </TouchableOpacity>
       <Text style={[styles.quantity, { color: themeColors.text }]}>{quantity}</Text>
       <TouchableOpacity

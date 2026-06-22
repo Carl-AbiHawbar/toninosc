@@ -71,6 +71,7 @@ export interface Branch {
   phone: string;
   managerId: string;
   isFranchise: boolean;
+  suppliesFree?: boolean;
 }
 
 export interface Warehouse {
@@ -133,6 +134,20 @@ export interface InventoryBalance {
   status: InventoryStatus;
 }
 
+export interface StockBatch {
+  id: string;
+  stockItemId: string;
+  warehouseId: string;
+  batchNumber: string;
+  productionDate: string;
+  expiryDate: string;
+  receivedDate: string;
+  originalQuantity: number;
+  currentQuantity: number;
+  supplierId?: string;
+  note?: string;
+}
+
 export interface StockMovement {
   id: string;
   stockItemId: string;
@@ -140,7 +155,19 @@ export interface StockMovement {
   type: 'receive' | 'adjust' | 'pick' | 'return';
   quantity: number;
   date: string;
+  batchId?: string;
+  batchNumber?: string;
+  orderId?: string;
+  branchId?: string;
   note?: string;
+}
+
+export interface BatchAllocation {
+  batchId: string;
+  batchNumber: string;
+  quantity: number;
+  productionDate: string;
+  expiryDate: string;
 }
 
 export interface BranchOrderLine {
@@ -148,6 +175,7 @@ export interface BranchOrderLine {
   stockItemId: string;
   quantity: number;
   unitPrice: number;
+  allocations?: BatchAllocation[];
   note?: string;
 }
 
@@ -176,7 +204,7 @@ export interface DeliveryStop {
   boxCount: number;
   invoiceTotal: number;
   status: DeliveryStatus;
-  items: { name: string; quantity: number; unit: string }[];
+  items: { name: string; quantity: number; unit: string; batches?: BatchAllocation[] }[];
 }
 
 export interface Delivery {
@@ -195,6 +223,7 @@ export interface InvoiceLine {
   unit: string;
   unitPrice: number;
   total: number;
+  batches?: BatchAllocation[];
 }
 
 export interface Invoice {

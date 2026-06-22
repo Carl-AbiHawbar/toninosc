@@ -15,7 +15,7 @@ export default function AdminBranchesScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <ScreenHeader
           title={t('allBranches')}
-          subtitle={isArabic ? `${mockBranches.length} فروع` : `${mockBranches.length} locations`}
+          subtitle={isArabic ? `${mockBranches.length} فروع` : `${mockBranches.length} branches`}
         />
 
         {mockBranches.map((branch) => {
@@ -24,15 +24,36 @@ export default function AdminBranchesScreen() {
             <AppCard key={branch.id} style={styles.card}>
               <View style={styles.header}>
                 <Text style={[styles.name, { color: themeColors.text }]}>{branch.name}</Text>
-                {branch.isFranchise && (
-                  <View style={[styles.franchiseBadge, { backgroundColor: `${themeColors.warning}20` }]}>
-                    <Text style={[styles.franchiseText, { color: themeColors.warning }]}>{isArabic ? 'فرنشايز' : 'Franchise'}</Text>
-                  </View>
-                )}
+                <View
+                  style={[
+                    styles.franchiseBadge,
+                    { backgroundColor: `${branch.suppliesFree ? themeColors.success : themeColors.warning}20` },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.franchiseText,
+                      { color: branch.suppliesFree ? themeColors.success : themeColors.warning },
+                    ]}
+                  >
+                    {branch.suppliesFree
+                      ? isArabic
+                        ? 'توريد مجاني'
+                        : 'Free supply'
+                      : isArabic
+                        ? 'فرنشايز'
+                        : 'Franchise'}
+                  </Text>
+                </View>
               </View>
               <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{isArabic ? 'الموقع' : 'Location'}: {branch.address}</Text>
               <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{branch.city}</Text>
               <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{isArabic ? 'الهاتف' : 'Phone'}: {branch.phone}</Text>
+              {branch.suppliesFree && (
+                <Text style={[styles.metaText, { color: themeColors.success }]}>
+                  {isArabic ? 'يتم تتبع الطلبات بدون تحصيل.' : 'Orders are tracked without payment collection.'}
+                </Text>
+              )}
               {manager && (
                 <Text style={[styles.manager, { color: themeColors.text }]}>{isArabic ? 'المدير' : 'Manager'}: {manager.name}</Text>
               )}

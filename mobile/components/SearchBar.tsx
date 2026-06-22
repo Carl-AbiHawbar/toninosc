@@ -19,7 +19,7 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search...' }: Se
           styles.input,
           {
             backgroundColor: themeColors.card,
-            borderColor: themeColors.border,
+            borderColor: themeColors.borderStrong,
             color: themeColors.text,
             textAlign: isArabic ? 'right' : 'left',
             writingDirection: isArabic ? 'rtl' : 'ltr',
@@ -43,7 +43,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-    fontSize: 16,
+    paddingVertical: spacing.sm + 2,
+    fontSize: 15,
+    minHeight: 44,
   },
 });

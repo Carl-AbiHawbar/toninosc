@@ -8,14 +8,14 @@ export const spacing = {
 } as const;
 
 export const borderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  sm: 6,
+  md: 8,
+  lg: 8,
+  xl: 12,
   full: 999,
 } as const;
 
 export const touchTarget = {
-  minHeight: 48,
+  minHeight: 44,
   minWidth: 48,
 } as const;

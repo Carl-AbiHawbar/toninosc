@@ -36,8 +36,8 @@ export function AppButton({
   const { themeColors } = useApp();
   const variantStyles: Record<Variant, { bg: string; text: string; border?: string }> = {
     primary: { bg: themeColors.primary, text: themeColors.white },
-    secondary: { bg: themeColors.text, text: themeColors.background },
-    outline: { bg: themeColors.card, text: themeColors.primary, border: themeColors.primary },
+    secondary: { bg: themeColors.surfaceMuted, text: themeColors.textBody, border: themeColors.borderStrong },
+    outline: { bg: themeColors.card, text: themeColors.textBody, border: themeColors.borderStrong },
     success: { bg: themeColors.success, text: themeColors.white },
     warning: { bg: themeColors.warning, text: themeColors.white },
     danger: { bg: themeColors.error, text: themeColors.white },
@@ -49,7 +49,7 @@ export function AppButton({
       style={[
         styles.button,
         { backgroundColor: v.bg, borderColor: v.border ?? v.bg },
-        variant === 'outline' && { borderWidth: 2, backgroundColor: themeColors.card },
+        (variant === 'outline' || variant === 'secondary') && { borderWidth: 1 },
         disabled && styles.disabled,
         style,
       ]}
@@ -70,10 +70,10 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: touchTarget.minHeight + 4,
+    minHeight: touchTarget.minHeight,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   text: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

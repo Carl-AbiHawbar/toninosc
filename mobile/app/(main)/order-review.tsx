@@ -2,7 +2,6 @@ import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { mockBranches } from '@/data/mockBranches';
-import { getStockItemById } from '@/data/mockStockItems';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { AppButton } from '@/components/AppButton';
@@ -12,7 +11,7 @@ import { formatCurrency } from '@/utils/helpers';
 
 export default function OrderReviewScreen() {
   const router = useRouter();
-  const { currentUser, cart, cartNotes, getCartTotal, submitOrder, saveDraft, language, themeColors, t } = useApp();
+  const { currentUser, stockItems, cart, cartNotes, getCartTotal, submitOrder, saveDraft, language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
 
   const branch = mockBranches.find((b) => b.id === currentUser?.branchId);
@@ -57,7 +56,7 @@ export default function OrderReviewScreen() {
 
         <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>{t('orderItems')}</Text>
         {cart.map((item) => {
-          const stock = getStockItemById(item.stockItemId);
+          const stock = stockItems.find((stockItem) => stockItem.id === item.stockItemId);
           if (!stock) return null;
           const lineTotal = stock.price * item.quantity;
 

@@ -2,7 +2,6 @@ import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-n
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
 import { mockBranches } from '@/data/mockBranches';
 import { getStockItemById } from '@/data/mockStockItems';
-import { getInventoryForItem } from '@/data/mockInventory';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -28,7 +27,7 @@ const statusGroupLabelsAr: Record<string, string> = {
 };
 
 export default function WarehouseOrdersScreen() {
-  const { orders, updateOrderStatus, language, themeColors, t } = useApp();
+  const { orders, inventory, updateOrderStatus, language, themeColors, t } = useApp();
 
   const handleAction = (orderId: string, status: OrderStatus) => {
     updateOrderStatus(orderId, status);
@@ -75,13 +74,20 @@ export default function WarehouseOrdersScreen() {
                     <Text style={[styles.pickLabel, { color: themeColors.textSecondary }]}>{t('pickList')}</Text>
                     {order.lines.map((line) => {
                       const stock = getStockItemById(line.stockItemId);
-                      const inv = getInventoryForItem(line.stockItemId);
+                      const inv = inventory.find((balance) => balance.stockItemId === line.stockItemId);
                       const isLow = (inv?.currentStock ?? 0) < line.quantity;
                       return (
                         <View key={line.id} style={styles.pickRow}>
-                          <Text style={[styles.pickItem, { color: themeColors.text }]}>
-                            {stock?.imageEmoji} {stock?.name}
-                          </Text>
+                          <View style={styles.pickItemWrap}>
+                            <Text style={[styles.pickItem, { color: themeColors.text }]}>
+                              {stock?.imageEmoji} {stock?.name}
+                            </Text>
+                            {(line.allocations?.length ?? 0) > 0 && (
+                              <Text style={[styles.batchText, { color: themeColors.textSecondary }]}>
+                                Batch: {line.allocations?.map((allocation) => `${allocation.batchNumber} x${allocation.quantity}`).join(', ')}
+                              </Text>
+                            )}
+                          </View>
                           <Text style={[styles.pickQty, { color: themeColors.text }]}>x{line.quantity}</Text>
                           <Text style={[styles.pickStock, { color: isLow ? themeColors.error : themeColors.success }]}>
                             {t('leftCount', { count: inv?.currentStock ?? 0 })}
@@ -146,7 +152,9 @@ const styles = StyleSheet.create({
   orderDate: { fontSize: 13 },
   pickLabel: { fontSize: 14, fontWeight: '700', marginBottom: spacing.xs, marginTop: spacing.sm },
   pickRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, gap: spacing.sm },
-  pickItem: { flex: 1, fontSize: 14 },
+  pickItemWrap: { flex: 1 },
+  pickItem: { fontSize: 14 },
+  batchText: { fontSize: 11, marginTop: 2 },
   pickQty: { fontSize: 14, fontWeight: '700', minWidth: 36 },
   pickStock: { fontSize: 12, fontWeight: '600', minWidth: 54, textAlign: 'right' },
   orderTotal: { fontSize: 16, fontWeight: '700', marginTop: spacing.sm },

@@ -13,10 +13,10 @@ export const mockOrders: BranchOrder[] = [
     createdAt: '2026-06-10T09:00:00',
     updatedAt: '2026-06-11T14:00:00',
     lines: [
-      { id: 'line-1', stockItemId: 'stock-1', quantity: 5, unitPrice: 45 },
-      { id: 'line-2', stockItemId: 'stock-2', quantity: 8, unitPrice: 12 },
-      { id: 'line-3', stockItemId: 'stock-12', quantity: 6, unitPrice: 20 },
-      { id: 'line-4', stockItemId: 'stock-16', quantity: 10, unitPrice: 6 },
+      { id: 'line-1', stockItemId: 'stock-1', quantity: 5, unitPrice: 81 },
+      { id: 'line-2', stockItemId: 'stock-2', quantity: 8, unitPrice: 26 },
+      { id: 'line-3', stockItemId: 'stock-12', quantity: 6, unitPrice: 15.5 },
+      { id: 'line-4', stockItemId: 'stock-16', quantity: 10, unitPrice: 8 },
     ],
     notes: 'Regular weekly order',
     deliveryId: 'delivery-1',
@@ -31,10 +31,10 @@ export const mockOrders: BranchOrder[] = [
     createdAt: '2026-06-15T10:30:00',
     updatedAt: '2026-06-16T08:00:00',
     lines: [
-      { id: 'line-5', stockItemId: 'stock-1', quantity: 4, unitPrice: 45 },
-      { id: 'line-6', stockItemId: 'stock-4', quantity: 3, unitPrice: 22 },
-      { id: 'line-7', stockItemId: 'stock-6', quantity: 12, unitPrice: 3 },
-      { id: 'line-8', stockItemId: 'stock-15', quantity: 8, unitPrice: 8 },
+      { id: 'line-5', stockItemId: 'stock-1', quantity: 4, unitPrice: 81 },
+      { id: 'line-6', stockItemId: 'stock-4', quantity: 3, unitPrice: 70 },
+      { id: 'line-7', stockItemId: 'stock-6', quantity: 12, unitPrice: 32 },
+      { id: 'line-8', stockItemId: 'stock-15', quantity: 8, unitPrice: 21.5 },
     ],
     assignedDriverId: 'user-7',
     deliveryId: 'delivery-2',
@@ -48,9 +48,9 @@ export const mockOrders: BranchOrder[] = [
     createdAt: `${demoToday}T08:00:00`,
     updatedAt: `${demoToday}T08:00:00`,
     lines: [
-      { id: 'line-9', stockItemId: 'stock-3', quantity: 6, unitPrice: 18 },
-      { id: 'line-10', stockItemId: 'stock-7', quantity: 5, unitPrice: 8 },
-      { id: 'line-11', stockItemId: 'stock-13', quantity: 4, unitPrice: 18 },
+      { id: 'line-9', stockItemId: 'stock-3', quantity: 6, unitPrice: 70 },
+      { id: 'line-10', stockItemId: 'stock-7', quantity: 5, unitPrice: 4.5 },
+      { id: 'line-11', stockItemId: 'stock-13', quantity: 4, unitPrice: 8 },
     ],
   },
   {
@@ -62,9 +62,9 @@ export const mockOrders: BranchOrder[] = [
     createdAt: `${demoToday}T07:00:00`,
     updatedAt: `${demoToday}T09:00:00`,
     lines: [
-      { id: 'line-12', stockItemId: 'stock-1', quantity: 3, unitPrice: 45 },
-      { id: 'line-13', stockItemId: 'stock-8', quantity: 4, unitPrice: 14 },
-      { id: 'line-14', stockItemId: 'stock-19', quantity: 6, unitPrice: 3 },
+      { id: 'line-12', stockItemId: 'stock-1', quantity: 3, unitPrice: 81 },
+      { id: 'line-13', stockItemId: 'stock-8', quantity: 4, unitPrice: 125 },
+      { id: 'line-14', stockItemId: 'stock-19', quantity: 6, unitPrice: 15 },
     ],
   },
   {
@@ -76,9 +76,9 @@ export const mockOrders: BranchOrder[] = [
     createdAt: `${demoToday}T06:00:00`,
     updatedAt: `${demoToday}T07:30:00`,
     lines: [
-      { id: 'line-15', stockItemId: 'stock-1', quantity: 6, unitPrice: 45 },
-      { id: 'line-16', stockItemId: 'stock-2', quantity: 10, unitPrice: 12 },
-      { id: 'line-17', stockItemId: 'stock-14', quantity: 15, unitPrice: 5 },
+      { id: 'line-15', stockItemId: 'stock-1', quantity: 6, unitPrice: 81 },
+      { id: 'line-16', stockItemId: 'stock-2', quantity: 10, unitPrice: 26 },
+      { id: 'line-17', stockItemId: 'stock-14', quantity: 15, unitPrice: 7 },
     ],
   },
   {
@@ -90,8 +90,8 @@ export const mockOrders: BranchOrder[] = [
     createdAt: '2026-06-08T11:00:00',
     updatedAt: '2026-06-09T16:00:00',
     lines: [
-      { id: 'line-18', stockItemId: 'stock-12', quantity: 8, unitPrice: 20 },
-      { id: 'line-19', stockItemId: 'stock-16', quantity: 12, unitPrice: 6 },
+      { id: 'line-18', stockItemId: 'stock-12', quantity: 8, unitPrice: 15.5 },
+      { id: 'line-19', stockItemId: 'stock-16', quantity: 12, unitPrice: 8 },
     ],
     invoiceId: 'invoice-2',
   },
@@ -104,7 +104,7 @@ export const mockOrders: BranchOrder[] = [
     createdAt: '2026-06-05T09:00:00',
     updatedAt: '2026-06-06T10:00:00',
     lines: [
-      { id: 'line-20', stockItemId: 'stock-6', quantity: 10, unitPrice: 3, note: 'Some bananas were bruised' },
+      { id: 'line-20', stockItemId: 'stock-6', quantity: 10, unitPrice: 32, note: 'Quality issue reported' },
     ],
     notes: 'Quality issue reported',
   },

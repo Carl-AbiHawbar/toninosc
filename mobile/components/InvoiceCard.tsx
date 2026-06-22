@@ -21,8 +21,9 @@ export function InvoiceCard({ invoice, onPress, onMarkPaid, onAddPayment, showAc
   const branch = mockBranches.find((b) => b.id === invoice.branchId);
   const { language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
-  const paidAmount = invoice.paidAmount ?? (invoice.paymentStatus === 'paid' ? invoice.grandTotal : 0);
-  const balance = Math.max(0, invoice.grandTotal - paidAmount);
+  const isFreeSupply = Boolean(branch?.suppliesFree);
+  const paidAmount = isFreeSupply ? invoice.grandTotal : invoice.paidAmount ?? (invoice.paymentStatus === 'paid' ? invoice.grandTotal : 0);
+  const balance = isFreeSupply ? 0 : Math.max(0, invoice.grandTotal - paidAmount);
   const showDemoMessage = (action: string) => {
     Alert.alert(t('demoAction'), t('demoFinance', { action }));
   };
@@ -38,6 +39,11 @@ export function InvoiceCard({ invoice, onPress, onMarkPaid, onAddPayment, showAc
       </View>
 
       <Text style={[styles.branch, { color: themeColors.text }]}>{branch?.name ?? 'Unknown Branch'}</Text>
+      {isFreeSupply && (
+        <Text style={[styles.paymentHint, { color: themeColors.success }]}>
+          {isArabic ? 'فرع توريد مجاني - القيمة للتتبع فقط' : 'Free-supply branch - value tracked only'}
+        </Text>
+      )}
       <Text style={[styles.date, { color: themeColors.textSecondary }]}>{formatDate(invoice.date)}</Text>
       {invoice.dueDate && (
         <Text style={[styles.date, { color: balance > 0 ? themeColors.warning : themeColors.textSecondary }]}>
@@ -100,10 +106,12 @@ export function InvoiceCard({ invoice, onPress, onMarkPaid, onAddPayment, showAc
       {showActions && (
         <View style={styles.actions}>
           <AppButton title={t('downloadPdf')} onPress={() => showDemoMessage(t('downloadPdf'))} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
-          {invoice.paymentStatus !== 'paid' && onMarkPaid && (
+          {!isFreeSupply && invoice.paymentStatus !== 'paid' && onMarkPaid && (
             <AppButton title={t('markAsPaid')} onPress={onMarkPaid} variant="success" style={styles.actionBtn} textStyle={styles.actionText} />
           )}
-          <AppButton title={t('addPayment')} onPress={onAddPayment ?? (() => showDemoMessage(t('addPayment')))} variant="secondary" style={styles.actionBtn} textStyle={styles.actionText} />
+          {!isFreeSupply && (
+            <AppButton title={t('addPayment')} onPress={onAddPayment ?? (() => showDemoMessage(t('addPayment')))} variant="secondary" style={styles.actionBtn} textStyle={styles.actionText} />
+          )}
           <AppButton title={t('creditNote')} onPress={() => showDemoMessage(t('creditNote'))} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
         </View>
       )}
