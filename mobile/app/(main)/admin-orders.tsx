@@ -1,7 +1,6 @@
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
-import { mockBranches } from '@/data/mockBranches';
 import { getOrderItemCount } from '@/data/mockOrders';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
@@ -12,7 +11,7 @@ import { formatCurrency, formatDate } from '@/utils/helpers';
 
 export default function AdminOrdersScreen() {
   const router = useRouter();
-  const { orders, language, themeColors, t } = useApp();
+  const { orders, branches, language, themeColors, t } = useApp();
 
   const sorted = [...orders].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -27,7 +26,7 @@ export default function AdminOrdersScreen() {
         />
 
         {sorted.map((order) => {
-          const branch = mockBranches.find((b) => b.id === order.branchId);
+          const branch = branches.find((b) => b.id === order.branchId);
           return (
             <AppCard key={order.id} style={styles.card}>
               <View style={styles.header}>

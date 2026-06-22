@@ -5,7 +5,6 @@ import { AppButton } from '@/components/AppButton';
 import { DashboardCard } from '@/components/DashboardCard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
-import { mockBranches } from '@/data/mockBranches';
 import { roleLabelsByLanguage } from '@/i18n/translations';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -16,6 +15,7 @@ export default function HomeScreen() {
   const {
     currentUser,
     logout,
+    branches,
     deliveries,
     language,
     toggleLanguage,
@@ -35,7 +35,7 @@ export default function HomeScreen() {
     return null;
   }
 
-  const branch = mockBranches.find((b) => b.id === currentUser.branchId);
+  const branch = branches.find((b) => b.id === currentUser.branchId);
   const visibleNotifications = getVisibleNotifications().slice(0, 3);
   const queuedSync = offlineSync.filter((item) => item.status === 'queued').length;
 

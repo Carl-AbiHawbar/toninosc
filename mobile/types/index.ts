@@ -21,7 +21,9 @@ export type OrderStatus =
   | 'delivered'
   | 'invoiced'
   | 'paid'
-  | 'problem';
+  | 'problem'
+  | 'cancel_requested'
+  | 'cancelled';
 
 export type DeliveryStatus =
   | 'pending'
@@ -90,6 +92,7 @@ export interface StockItem {
   imageEmoji: string;
   averageOrderQty: number;
   supplierId?: string;
+  requiresExpiry?: boolean;
 }
 
 export interface MenuItem {
@@ -139,8 +142,8 @@ export interface StockBatch {
   stockItemId: string;
   warehouseId: string;
   batchNumber: string;
-  productionDate: string;
-  expiryDate: string;
+  productionDate?: string;
+  expiryDate?: string;
   receivedDate: string;
   originalQuantity: number;
   currentQuantity: number;

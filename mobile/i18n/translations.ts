@@ -291,6 +291,8 @@ export const orderStatusLabelsByLanguage: Record<Language, Record<OrderStatus, s
     invoiced: 'Invoiced',
     paid: 'Paid',
     problem: 'Problem',
+    cancel_requested: 'Cancel Requested',
+    cancelled: 'Cancelled',
   },
   ar: {
     draft: 'مسودة',
@@ -304,6 +306,8 @@ export const orderStatusLabelsByLanguage: Record<Language, Record<OrderStatus, s
     invoiced: 'تمت الفوترة',
     paid: 'مدفوع',
     problem: 'مشكلة',
+    cancel_requested: 'طلب إلغاء',
+    cancelled: 'ملغى',
   },
 };
 

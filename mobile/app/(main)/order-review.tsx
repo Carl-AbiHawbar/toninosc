@@ -1,7 +1,6 @@
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
-import { mockBranches } from '@/data/mockBranches';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { AppButton } from '@/components/AppButton';
@@ -11,21 +10,21 @@ import { formatCurrency } from '@/utils/helpers';
 
 export default function OrderReviewScreen() {
   const router = useRouter();
-  const { currentUser, stockItems, cart, cartNotes, getCartTotal, submitOrder, saveDraft, language, themeColors, t } = useApp();
+  const { currentUser, branches, stockItems, cart, cartNotes, getCartTotal, submitOrder, saveDraft, language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
 
-  const branch = mockBranches.find((b) => b.id === currentUser?.branchId);
+  const branch = branches.find((b) => b.id === currentUser?.branchId);
   const total = getCartTotal();
 
-  const handleSubmit = () => {
-    const order = submitOrder();
+  const handleSubmit = async () => {
+    const order = await submitOrder();
     if (order) {
       router.replace('/(main)/my-orders');
     }
   };
 
-  const handleSaveDraft = () => {
-    const order = saveDraft();
+  const handleSaveDraft = async () => {
+    const order = await saveDraft();
     if (order) {
       router.replace('/(main)/my-orders');
     }

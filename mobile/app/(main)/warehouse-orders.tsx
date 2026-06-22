@@ -1,7 +1,5 @@
 import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
-import { mockBranches } from '@/data/mockBranches';
-import { getStockItemById } from '@/data/mockStockItems';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -27,10 +25,10 @@ const statusGroupLabelsAr: Record<string, string> = {
 };
 
 export default function WarehouseOrdersScreen() {
-  const { orders, inventory, updateOrderStatus, language, themeColors, t } = useApp();
+  const { orders, branches, stockItems, inventory, updateOrderStatus, language, themeColors, t } = useApp();
 
-  const handleAction = (orderId: string, status: OrderStatus) => {
-    updateOrderStatus(orderId, status);
+  const handleAction = async (orderId: string, status: OrderStatus) => {
+    await updateOrderStatus(orderId, status);
   };
 
   const handleEditQuantities = () => {
@@ -59,7 +57,7 @@ export default function WarehouseOrdersScreen() {
                 {language === 'ar' ? statusGroupLabelsAr[group.label] : group.label} ({groupOrders.length})
               </Text>
               {groupOrders.map((order) => {
-                const branch = mockBranches.find((b) => b.id === order.branchId);
+                const branch = branches.find((b) => b.id === order.branchId);
                 return (
                   <AppCard key={order.id} style={styles.orderCard}>
                     <View style={styles.orderHeader}>
@@ -73,7 +71,7 @@ export default function WarehouseOrdersScreen() {
 
                     <Text style={[styles.pickLabel, { color: themeColors.textSecondary }]}>{t('pickList')}</Text>
                     {order.lines.map((line) => {
-                      const stock = getStockItemById(line.stockItemId);
+                      const stock = stockItems.find((item) => item.id === line.stockItemId);
                       const inv = inventory.find((balance) => balance.stockItemId === line.stockItemId);
                       const isLow = (inv?.currentStock ?? 0) < line.quantity;
                       return (

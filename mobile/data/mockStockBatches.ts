@@ -55,7 +55,7 @@ export const mockStockBatches: StockBatch[] = mockStockItems.flatMap((item, inde
 export function getBatchesForItem(stockItemId: string, batches = mockStockBatches) {
   return batches
     .filter((batch) => batch.stockItemId === stockItemId && batch.currentQuantity > 0)
-    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+    .sort((a, b) => (a.expiryDate ?? '9999-12-31').localeCompare(b.expiryDate ?? '9999-12-31'));
 }
 
 export function getEarliestExpiry(stockItemId: string, batches = mockStockBatches) {

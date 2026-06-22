@@ -7,28 +7,27 @@ import { AppButton } from '@/components/AppButton';
 import { SearchBar } from '@/components/SearchBar';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { useApp } from '@/context/AppContext';
-import { mockSuppliers } from '@/data/mockSuppliers';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 type ReceiveLine = {
   stockItemId: string;
   quantity: number;
   batchNumber: string;
-  productionDate: string;
-  expiryDate: string;
+  productionDate?: string;
+  expiryDate?: string;
 };
 
 export default function ReceiveStockScreen() {
   const router = useRouter();
-  const { currentUser, stockItems, inventory, language, themeColors, receiveStock } = useApp();
+  const { currentUser, stockItems, inventory, suppliers, language, themeColors, receiveStock } = useApp();
   const isArabic = language === 'ar';
   const canReceiveStock = currentUser?.role === 'admin' || currentUser?.role === 'warehouse';
   const [search, setSearch] = useState('');
-  const [supplierId, setSupplierId] = useState(mockSuppliers[0]?.id ?? '');
+  const [supplierId, setSupplierId] = useState('');
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<ReceiveLine[]>([]);
 
-  const selectedSupplier = mockSuppliers.find((supplier) => supplier.id === supplierId);
+  const selectedSupplier = suppliers.find((supplier) => supplier.id === supplierId);
   const lineCount = lines.reduce((sum, line) => sum + line.quantity, 0);
 
   const filteredItems = useMemo(() => {
@@ -75,14 +74,17 @@ export default function ReceiveStockScreen() {
     setLines((prev) => prev.map((line) => (line.stockItemId === stockItemId ? { ...line, [field]: value } : line)));
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (lines.length === 0) {
       Alert.alert(isArabic ? 'لا توجد مواد' : 'No items', isArabic ? 'أضف مواد قبل التأكيد.' : 'Add items before confirming.');
       return;
     }
 
     const invalidLine = lines.find((line) => {
-      if (!line.batchNumber.trim() || !line.productionDate || !line.expiryDate) return true;
+      const stock = stockItems.find((item) => item.id === line.stockItemId);
+      if (!line.batchNumber.trim()) return true;
+      if (stock?.requiresExpiry === false) return false;
+      if (!line.productionDate || !line.expiryDate) return true;
       return new Date(line.expiryDate) <= new Date(line.productionDate);
     });
 
@@ -96,8 +98,10 @@ export default function ReceiveStockScreen() {
       return;
     }
 
-    receiveStock(
-      lines.map((line) => ({ ...line, supplierId })),
+    const activeSupplierId = supplierId || suppliers[0]?.id;
+
+    await receiveStock(
+      lines.map((line) => ({ ...line, supplierId: activeSupplierId })),
       `${selectedSupplier?.name ?? 'Supplier'}${note ? ` - ${note}` : ''}`
     );
     Alert.alert(
@@ -134,12 +138,12 @@ export default function ReceiveStockScreen() {
           {isArabic ? 'المورد' : 'Supplier'}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.supplierScroll}>
-          {mockSuppliers.map((supplier) => (
+          {suppliers.map((supplier) => (
             <AppButton
               key={supplier.id}
               title={supplier.name}
               onPress={() => setSupplierId(supplier.id)}
-              variant={supplierId === supplier.id ? 'primary' : 'outline'}
+              variant={(supplierId || suppliers[0]?.id) === supplier.id ? 'primary' : 'outline'}
               style={styles.supplierButton}
               textStyle={styles.supplierText}
             />
@@ -188,6 +192,7 @@ export default function ReceiveStockScreen() {
           const inv = inventory.find((balance) => balance.stockItemId === item.id);
           const quantity = getQuantity(item.id);
           const line = getLine(item.id);
+          const needsExpiry = item.requiresExpiry !== false;
 
           return (
             <AppCard key={item.id} style={styles.itemCard}>
@@ -219,28 +224,34 @@ export default function ReceiveStockScreen() {
                     placeholder={isArabic ? 'Batch number' : 'Batch number'}
                     placeholderTextColor={themeColors.textSecondary}
                   />
-                  <View style={styles.dateRow}>
-                    <TextInput
-                      style={[
-                        styles.dateInput,
-                        { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text },
-                      ]}
-                      value={line.productionDate}
-                      onChangeText={(value) => updateLineField(item.id, 'productionDate', value)}
-                      placeholder={isArabic ? 'Production YYYY-MM-DD' : 'Production YYYY-MM-DD'}
-                      placeholderTextColor={themeColors.textSecondary}
-                    />
-                    <TextInput
-                      style={[
-                        styles.dateInput,
-                        { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text },
-                      ]}
-                      value={line.expiryDate}
-                      onChangeText={(value) => updateLineField(item.id, 'expiryDate', value)}
-                      placeholder={isArabic ? 'Expiry YYYY-MM-DD' : 'Expiry YYYY-MM-DD'}
-                      placeholderTextColor={themeColors.textSecondary}
-                    />
-                  </View>
+                  {needsExpiry ? (
+                    <View style={styles.dateRow}>
+                      <TextInput
+                        style={[
+                          styles.dateInput,
+                          { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text },
+                        ]}
+                        value={line.productionDate}
+                        onChangeText={(value) => updateLineField(item.id, 'productionDate', value)}
+                        placeholder={isArabic ? 'Production YYYY-MM-DD' : 'Production YYYY-MM-DD'}
+                        placeholderTextColor={themeColors.textSecondary}
+                      />
+                      <TextInput
+                        style={[
+                          styles.dateInput,
+                          { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text },
+                        ]}
+                        value={line.expiryDate}
+                        onChangeText={(value) => updateLineField(item.id, 'expiryDate', value)}
+                        placeholder={isArabic ? 'Expiry YYYY-MM-DD' : 'Expiry YYYY-MM-DD'}
+                        placeholderTextColor={themeColors.textSecondary}
+                      />
+                    </View>
+                  ) : (
+                    <Text style={[styles.noExpiryText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+                      {isArabic ? 'لا يحتاج تاريخ انتهاء' : 'No expiry required'}
+                    </Text>
+                  )}
                 </View>
               )}
             </AppCard>
@@ -295,6 +306,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     fontSize: 13,
   },
+  noExpiryText: { fontSize: 13, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center' },
   rtlText: {
     textAlign: 'right',

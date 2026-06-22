@@ -6,8 +6,7 @@ import { DashboardCard } from '@/components/DashboardCard';
 import { SearchBar } from '@/components/SearchBar';
 import { AppButton } from '@/components/AppButton';
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
-import { mockBranches } from '@/data/mockBranches';
-import { getStockItemById } from '@/data/mockStockItems';
+import { StockItem } from '@/types';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, getMonthKey } from '@/utils/helpers';
 
@@ -43,13 +42,14 @@ function getOrderQty(order: { lines: { quantity: number }[] }) {
 }
 
 function getItemTotals(
-  orders: { lines: { stockItemId: string; quantity: number; unitPrice: number }[] }[]
+  orders: { lines: { stockItemId: string; quantity: number; unitPrice: number }[] }[],
+  stockItems: StockItem[]
 ) {
   const itemMap = new Map<string, ItemTotal>();
 
   orders.forEach((order) => {
     order.lines.forEach((line) => {
-      const stock = getStockItemById(line.stockItemId);
+      const stock = stockItems.find((item) => item.id === line.stockItemId);
       const current = itemMap.get(line.stockItemId) ?? {
         id: line.stockItemId,
         name: stock?.name ?? 'Unknown item',
@@ -68,7 +68,7 @@ function getItemTotals(
 }
 
 export default function ReportsScreen() {
-  const { orders, language, themeColors, t } = useApp();
+  const { orders, branches, stockItems, language, themeColors, t } = useApp();
   const [search, setSearch] = useState('');
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const isArabic = language === 'ar';
@@ -88,7 +88,7 @@ export default function ReportsScreen() {
 
   const report = useMemo(() => {
     const activeOrders = orders.filter((order) => order.status !== 'draft');
-    const branchTotals: BranchTotals[] = mockBranches.map((branch) => {
+    const branchTotals: BranchTotals[] = branches.map((branch) => {
       const branchOrders = activeOrders.filter((order) => order.branchId === branch.id);
       const monthOrders = branchOrders.filter((order) => order.createdAt.startsWith(monthKey));
       const yearOrders = branchOrders.filter((order) => order.createdAt.startsWith(yearKey));
@@ -116,10 +116,13 @@ export default function ReportsScreen() {
       { monthQty: 0, monthValue: 0, yearQty: 0, yearValue: 0, yearOrders: 0 }
     );
 
-    const topItems = getItemTotals(activeOrders.filter((order) => order.createdAt.startsWith(monthKey))).slice(0, 6);
+    const topItems = getItemTotals(
+      activeOrders.filter((order) => order.createdAt.startsWith(monthKey)),
+      stockItems
+    ).slice(0, 6);
 
     return { activeOrders, branchTotals, allTotals, topItems };
-  }, [monthKey, orders, yearKey]);
+  }, [branches, monthKey, orders, stockItems, yearKey]);
 
   const selectedBranch = report.branchTotals.find((branch) => branch.id === selectedBranchId);
 
@@ -146,9 +149,9 @@ export default function ReportsScreen() {
 
     return {
       months,
-      topItems: getItemTotals(branchYearOrders).slice(0, 10),
+      topItems: getItemTotals(branchYearOrders, stockItems).slice(0, 10),
     };
-  }, [locale, report.activeOrders, selectedBranchId, yearKey]);
+  }, [locale, report.activeOrders, selectedBranchId, stockItems, yearKey]);
 
   const filteredBranches = report.branchTotals.filter((branch) => {
     const query = search.trim().toLowerCase();

@@ -1,34 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
+  ActivityIndicator,
+  Alert,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { AppButton } from '@/components/AppButton';
 import { useApp } from '@/context/AppContext';
-import { mockUsers, roleEmojis } from '@/data/mockUsers';
-import { mockBranches } from '@/data/mockBranches';
-import { roleLabelsByLanguage } from '@/i18n/translations';
-import { Role } from '@/types';
 import { colors } from '@/theme/colors';
 import { borderRadius, spacing } from '@/theme/spacing';
 
-const roleOrder: Role[] = [
-  'branch_manager',
-  'admin',
-  'warehouse',
-  'driver',
-  'finance',
-  'supplier',
-];
-
 export default function LoginScreen() {
   const router = useRouter();
-  const { currentUser, login, language, toggleLanguage, themeMode, themeColors, toggleTheme, t } = useApp();
+  const { currentUser, login, language, toggleLanguage, themeMode, themeColors, toggleTheme, t, isLoading, dataError } = useApp();
   const isArabic = language === 'ar';
+  const [username, setUsername] = useState('admin');
+  const [password, setPassword] = useState('Tonino123!');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -36,26 +30,25 @@ export default function LoginScreen() {
     }
   }, [currentUser, router]);
 
-  const handleSelectUser = (userId: string) => {
-    login(userId);
-    router.replace('/(main)/home');
-  };
+  const handleLogin = async () => {
+    setSubmitting(true);
+    const ok = await login(username, password);
+    setSubmitting(false);
 
-  const getLoginDisplay = (user: (typeof mockUsers)[number]) => {
-    if (user.role !== 'branch_manager') {
-      return { title: user.name, subtitle: user.email };
+    if (ok) {
+      router.replace('/(main)/home');
+      return;
     }
 
-    const branch = mockBranches.find((item) => item.id === user.branchId);
-    return {
-      title: branch?.name ?? user.name,
-      subtitle: roleLabelsByLanguage[language].branch_manager,
-    };
+    Alert.alert(
+      isArabic ? 'تعذر تسجيل الدخول' : 'Login failed',
+      dataError ?? (isArabic ? 'تأكد من اسم المستخدم وكلمة المرور.' : 'Check the username and password.')
+    );
   };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.toggleRow}>
           <TouchableOpacity style={[styles.languageButton, { backgroundColor: themeColors.card, borderColor: themeColors.border }]} onPress={toggleLanguage}>
             <Text style={[styles.languageText, { color: themeColors.primary }]}>
@@ -74,43 +67,69 @@ export default function LoginScreen() {
           <Text style={[styles.tagline, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('tagline')}</Text>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>{t('chooseRole')}</Text>
-        <Text style={[styles.hint, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('demoMode')}</Text>
+        <View style={[styles.loginCard, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
+          <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>
+            {isArabic ? 'تسجيل الدخول' : 'Sign in'}
+          </Text>
 
-        {roleOrder.map((role) => {
-          const users = mockUsers.filter((u) => u.role === role);
-          if (users.length === 0) return null;
+          <Text style={[styles.label, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+            {isArabic ? 'اسم المستخدم' : 'Username'}
+          </Text>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={username}
+            onChangeText={setUsername}
+            placeholder="admin, warehouse, aley..."
+            placeholderTextColor={themeColors.textSecondary}
+            style={[
+              styles.input,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.border,
+                color: themeColors.text,
+                textAlign: isArabic ? 'right' : 'left',
+              },
+            ]}
+          />
 
-          return (
-            <View key={role} style={styles.roleSection}>
-              <Text style={[styles.roleLabel, { color: themeColors.text }, isArabic && styles.rtlText]}>
-                {roleEmojis[role]} {roleLabelsByLanguage[language][role]}
-              </Text>
-              {users.map((user) => {
-                const display = getLoginDisplay(user);
+          <Text style={[styles.label, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+            {isArabic ? 'كلمة المرور' : 'Password'}
+          </Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="Password"
+            placeholderTextColor={themeColors.textSecondary}
+            style={[
+              styles.input,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.border,
+                color: themeColors.text,
+                textAlign: isArabic ? 'right' : 'left',
+              },
+            ]}
+          />
 
-                return (
-                  <TouchableOpacity
-                    key={user.id}
-                    style={[
-                      styles.userCard,
-                      { backgroundColor: themeColors.card, borderColor: themeColors.border },
-                      isArabic && styles.userCardRtl,
-                    ]}
-                    onPress={() => handleSelectUser(user.id)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.userInfo}>
-                      <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>{display.title}</Text>
-                      <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{display.subtitle}</Text>
-                    </View>
-                    <Text style={[styles.enterArrow, { color: themeColors.primary }]}>{t('enter')}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          );
-        })}
+          <AppButton
+            title={submitting || isLoading ? (isArabic ? 'جار الدخول...' : 'Signing in...') : isArabic ? 'دخول' : 'Sign in'}
+            onPress={handleLogin}
+            disabled={submitting || isLoading}
+            style={styles.loginButton}
+          />
+
+          {(submitting || isLoading) && <ActivityIndicator color={themeColors.primary} style={styles.spinner} />}
+
+          {dataError ? (
+            <Text style={[styles.errorText, { color: themeColors.error }, isArabic && styles.rtlText]}>{dataError}</Text>
+          ) : null}
+
+          <Text style={[styles.helperText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+            {isArabic ? 'كلمة المرور المؤقتة: Tonino123!' : 'Temporary password: Tonino123!'}
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -122,8 +141,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
+    flexGrow: 1,
+    justifyContent: 'center',
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
   },
   languageButton: {
     borderWidth: 1,
@@ -131,15 +157,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-  },
   languageText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.primary,
   },
   header: {
     alignItems: 'flex-start',
@@ -151,63 +171,49 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 30,
     fontWeight: '800',
-    color: colors.primary,
   },
   tagline: {
     fontSize: 16,
-    color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  loginCard: {
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
   },
   sectionTitle: {
     fontSize: 20,
+    fontWeight: '800',
+    marginBottom: spacing.md,
+  },
+  label: {
+    fontSize: 13,
     fontWeight: '700',
-    color: colors.text,
     marginBottom: spacing.xs,
   },
-  hint: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-  },
-  roleSection: {
-    marginBottom: spacing.lg,
-  },
-  roleLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  userCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
+  input: {
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  userCardRtl: {
-    flexDirection: 'row-reverse',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  userEmail: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  enterArrow: {
+    borderRadius: borderRadius.md,
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
     fontSize: 16,
+    marginBottom: spacing.md,
+  },
+  loginButton: {
+    minHeight: 46,
+    marginTop: spacing.xs,
+  },
+  spinner: {
+    marginTop: spacing.md,
+  },
+  errorText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: colors.primary,
+    marginTop: spacing.md,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: spacing.md,
   },
   rtlText: {
     textAlign: 'right',

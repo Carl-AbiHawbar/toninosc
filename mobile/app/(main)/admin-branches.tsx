@@ -1,13 +1,11 @@
-import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
-import { mockBranches } from '@/data/mockBranches';
-import { mockUsers } from '@/data/mockUsers';
-import { ScreenHeader } from '@/components/ScreenHeader';
+import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppCard } from '@/components/AppCard';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { useApp } from '@/context/AppContext';
 import { spacing } from '@/theme/spacing';
 
 export default function AdminBranchesScreen() {
-  const { language, themeColors, t } = useApp();
+  const { branches, language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
 
   return (
@@ -15,51 +13,43 @@ export default function AdminBranchesScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <ScreenHeader
           title={t('allBranches')}
-          subtitle={isArabic ? `${mockBranches.length} فروع` : `${mockBranches.length} branches`}
+          subtitle={isArabic ? `${branches.length} branches` : `${branches.length} branches`}
         />
 
-        {mockBranches.map((branch) => {
-          const manager = mockUsers.find((u) => u.id === branch.managerId);
-          return (
-            <AppCard key={branch.id} style={styles.card}>
-              <View style={styles.header}>
-                <Text style={[styles.name, { color: themeColors.text }]}>{branch.name}</Text>
-                <View
+        {branches.map((branch) => (
+          <AppCard key={branch.id} style={styles.card}>
+            <View style={styles.header}>
+              <Text style={[styles.name, { color: themeColors.text }, isArabic && styles.rtlText]}>{branch.name}</Text>
+              <View
+                style={[
+                  styles.franchiseBadge,
+                  { backgroundColor: `${branch.suppliesFree ? themeColors.success : themeColors.warning}20` },
+                ]}
+              >
+                <Text
                   style={[
-                    styles.franchiseBadge,
-                    { backgroundColor: `${branch.suppliesFree ? themeColors.success : themeColors.warning}20` },
+                    styles.franchiseText,
+                    { color: branch.suppliesFree ? themeColors.success : themeColors.warning },
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.franchiseText,
-                      { color: branch.suppliesFree ? themeColors.success : themeColors.warning },
-                    ]}
-                  >
-                    {branch.suppliesFree
-                      ? isArabic
-                        ? 'توريد مجاني'
-                        : 'Free supply'
-                      : isArabic
-                        ? 'فرنشايز'
-                        : 'Franchise'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{isArabic ? 'الموقع' : 'Location'}: {branch.address}</Text>
-              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{branch.city}</Text>
-              <Text style={[styles.metaText, { color: themeColors.textSecondary }]}>{isArabic ? 'الهاتف' : 'Phone'}: {branch.phone}</Text>
-              {branch.suppliesFree && (
-                <Text style={[styles.metaText, { color: themeColors.success }]}>
-                  {isArabic ? 'يتم تتبع الطلبات بدون تحصيل.' : 'Orders are tracked without payment collection.'}
+                  {branch.suppliesFree ? (isArabic ? 'Free supply' : 'Free supply') : isArabic ? 'Franchise' : 'Franchise'}
                 </Text>
-              )}
-              {manager && (
-                <Text style={[styles.manager, { color: themeColors.text }]}>{isArabic ? 'المدير' : 'Manager'}: {manager.name}</Text>
-              )}
-            </AppCard>
-          );
-        })}
+              </View>
+            </View>
+            <Text style={[styles.metaText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+              {isArabic ? 'Location' : 'Location'}: {branch.address}
+            </Text>
+            <Text style={[styles.metaText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{branch.city}</Text>
+            <Text style={[styles.metaText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+              {isArabic ? 'Phone' : 'Phone'}: {branch.phone}
+            </Text>
+            {branch.suppliesFree && (
+              <Text style={[styles.metaText, { color: themeColors.success }, isArabic && styles.rtlText]}>
+                {isArabic ? 'Orders are tracked without payment collection.' : 'Orders are tracked without payment collection.'}
+              </Text>
+            )}
+          </AppCard>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -69,10 +59,13 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { padding: spacing.lg, paddingBottom: spacing.xxl },
   card: { marginBottom: spacing.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, gap: spacing.sm },
   name: { fontSize: 20, fontWeight: '800', flex: 1 },
   franchiseBadge: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 8 },
   franchiseText: { fontSize: 12, fontWeight: '700' },
   metaText: { fontSize: 14, marginBottom: 2 },
-  manager: { fontSize: 14, marginTop: spacing.sm, fontWeight: '600' },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 });

@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { stockCategories } from '@/data/mockStockItems';
-import { mockBranches } from '@/data/mockBranches';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { CategoryFilter } from '@/components/CategoryFilter';
 import { AppCard } from '@/components/AppCard';
@@ -19,7 +18,7 @@ export default function InventoryScreen() {
   const [filter, setFilter] = useState<string>('All');
   const [category, setCategory] = useState('All');
   const [priceEditor, setPriceEditor] = useState<{ stockItemId: string; value: string } | null>(null);
-  const { currentUser, stockItems, inventory, stockBatches, orders, updateStockItemPrice, language, themeColors, t } = useApp();
+  const { currentUser, branches, stockItems, inventory, stockBatches, orders, updateStockItemPrice, language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
   const canReceiveStock = currentUser?.role === 'admin' || currentUser?.role === 'warehouse';
   const canEditPrices = currentUser?.role === 'admin';
@@ -128,7 +127,7 @@ export default function InventoryScreen() {
           const statusColor = getInventoryStatusColor(inv.status, themeColors);
           const activeBatches = stockBatches
             .filter((batch) => batch.stockItemId === stock.id && batch.currentQuantity > 0)
-            .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+            .sort((a, b) => (a.expiryDate ?? '9999-12-31').localeCompare(b.expiryDate ?? '9999-12-31'));
           const earliestBatch = activeBatches[0];
           const getBatchBranches = (batchId: string) => {
             const branchIds = new Set<string>();
@@ -139,7 +138,7 @@ export default function InventoryScreen() {
               if (hasBatch) branchIds.add(order.branchId);
             });
             return Array.from(branchIds)
-              .map((branchId) => mockBranches.find((branch) => branch.id === branchId)?.name)
+              .map((branchId) => branches.find((branch) => branch.id === branchId)?.name)
               .filter(Boolean)
               .join(', ');
           };
@@ -191,7 +190,7 @@ export default function InventoryScreen() {
                     return (
                       <View key={batch.id} style={[styles.batchRow, { borderColor: themeColors.border }]}>
                         <Text style={[styles.batchLine, { color: themeColors.text }]}>
-                          {batch.batchNumber}: {batch.currentQuantity} left, exp {batch.expiryDate}
+                          {batch.batchNumber}: {batch.currentQuantity} left{batch.expiryDate ? `, exp ${batch.expiryDate}` : ''}
                         </Text>
                         {branchNames ? (
                           <Text style={[styles.batchTrace, { color: themeColors.textSecondary }]}>

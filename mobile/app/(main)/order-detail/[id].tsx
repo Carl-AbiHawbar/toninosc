@@ -1,9 +1,7 @@
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
-import { mockBranches } from '@/data/mockBranches';
 import { mockUsers } from '@/data/mockUsers';
-import { getStockItemById } from '@/data/mockStockItems';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -12,11 +10,11 @@ import { formatCurrency, formatDate } from '@/utils/helpers';
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { orders, auditEvents, language, themeColors, t } = useApp();
+  const { orders, branches, stockItems, auditEvents, language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
 
   const order = orders.find((o) => o.id === id);
-  const branch = mockBranches.find((b) => b.id === order?.branchId);
+  const branch = branches.find((b) => b.id === order?.branchId);
   const orderAuditEvents = auditEvents
     .filter((event) => event.entityType === 'order' && event.entityId === id)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -44,7 +42,7 @@ export default function OrderDetailScreen() {
         </View>
 
         {order.lines.map((line) => {
-          const stock = getStockItemById(line.stockItemId);
+          const stock = stockItems.find((item) => item.id === line.stockItemId);
           return (
             <AppCard key={line.id} style={styles.lineCard}>
               <View style={styles.lineRow}>

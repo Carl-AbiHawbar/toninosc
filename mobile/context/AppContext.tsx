@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import {
   User,
   BranchOrder,
@@ -18,6 +18,9 @@ import {
   StockBatch,
   BatchAllocation,
   StockItem,
+  Branch,
+  Supplier,
+  Warehouse,
 } from '@/types';
 import { mockUsers } from '@/data/mockUsers';
 import { mockOrders, calculateOrderTotal, getLastOrderForBranch } from '@/data/mockOrders';
@@ -33,11 +36,19 @@ import { mockStockItems } from '@/data/mockStockItems';
 import { generateOrderNumber, getDateKey, getMonthKey } from '@/utils/helpers';
 import { translate, TranslationKey } from '@/i18n/translations';
 import { AppColors, darkColors, lightColors } from '@/theme/colors';
+import { supabase } from '@/lib/supabase';
+import { fetchLiveData, signInWithUsername } from '@/lib/liveData';
 
 interface AppContextType {
   currentUser: User | null;
-  login: (userId: string) => void;
-  logout: () => void;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  isLoading: boolean;
+  dataError: string | null;
+  refreshData: () => Promise<void>;
+  branches: Branch[];
+  suppliers: Supplier[];
+  warehouses: Warehouse[];
   orders: BranchOrder[];
   deliveries: Delivery[];
   invoices: Invoice[];
@@ -66,24 +77,24 @@ interface AppContextType {
   loadLastOrderToCart: () => void;
   getCartTotal: () => number;
   getCartItemCount: () => number;
-  submitOrder: () => BranchOrder | null;
-  saveDraft: () => BranchOrder | null;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  submitOrder: () => Promise<BranchOrder | null>;
+  saveDraft: () => Promise<BranchOrder | null>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateDeliveryStopStatus: (deliveryId: string, stopId: string, status: DeliveryStop['status']) => void;
   markInvoicePaid: (invoiceId: string) => void;
   addInvoicePayment: (invoiceId: string, amount: number, method?: string) => void;
-  updateStockItemPrice: (stockItemId: string, price: number) => void;
+  updateStockItemPrice: (stockItemId: string, price: number) => Promise<void>;
   receiveStock: (
     items: {
       stockItemId: string;
       quantity: number;
       batchNumber: string;
-      productionDate: string;
-      expiryDate: string;
+      productionDate?: string;
+      expiryDate?: string;
       supplierId?: string;
     }[],
     note?: string
-  ) => void;
+  ) => Promise<void>;
   markNotificationRead: (notificationId: string) => void;
   getVisibleNotifications: () => AppNotification[];
 }
@@ -107,7 +118,7 @@ function getInventoryStatus(currentStock: number, minimumStock: number, expiryDa
 function getEarliestAvailableExpiry(stockItemId: string, batches: StockBatch[]) {
   return batches
     .filter((batch) => batch.stockItemId === stockItemId && batch.currentQuantity > 0)
-    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0]?.expiryDate;
+    .sort((a, b) => (a.expiryDate ?? '9999-12-31').localeCompare(b.expiryDate ?? '9999-12-31'))[0]?.expiryDate;
 }
 
 function syncInventoryWithBatches(
@@ -144,7 +155,7 @@ function allocateFefo(
   const allocatedByBatch = new Map<string, number>();
   const eligible = batches
     .filter((batch) => batch.stockItemId === stockItemId && batch.currentQuantity > 0)
-    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate));
+    .sort((a, b) => (a.expiryDate ?? '9999-12-31').localeCompare(b.expiryDate ?? '9999-12-31'));
 
   for (const batch of eligible) {
     if (remaining <= 0) break;
@@ -155,8 +166,8 @@ function allocateFefo(
       batchId: batch.id,
       batchNumber: batch.batchNumber,
       quantity,
-      productionDate: batch.productionDate,
-      expiryDate: batch.expiryDate,
+      productionDate: batch.productionDate ?? '',
+      expiryDate: batch.expiryDate ?? '',
     });
   }
 
@@ -172,6 +183,11 @@ function allocateFefo(
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [orders, setOrders] = useState<BranchOrder[]>(mockOrders);
   const [deliveries, setDeliveries] = useState<Delivery[]>(mockDeliveries);
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
@@ -188,12 +204,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartNotes, setCartNotes] = useState('');
 
-  const login = useCallback((userId: string) => {
-    const user = mockUsers.find((u) => u.id === userId);
-    if (user) setCurrentUser(user);
+  const refreshData = useCallback(async () => {
+    try {
+      setDataError(null);
+      const liveData = await fetchLiveData();
+      setCurrentUser(liveData.currentUser);
+      setBranches(liveData.branches);
+      setSuppliers(liveData.suppliers);
+      setWarehouses(liveData.warehouses);
+      setStockItems(liveData.stockItems);
+      setStockBatches(liveData.stockBatches);
+      setInventory(liveData.inventory);
+      setOrders(liveData.orders);
+    } catch (error) {
+      setDataError(error instanceof Error ? error.message : 'Could not load live data');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const logout = useCallback(() => {
+  useEffect(() => {
+    refreshData();
+
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      refreshData();
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, [refreshData]);
+
+  const login = useCallback(async (username: string, password: string) => {
+    setIsLoading(true);
+    const { error } = await signInWithUsername(username, password);
+    if (error) {
+      setIsLoading(false);
+      setDataError(error.message);
+      return false;
+    }
+    await refreshData();
+    return true;
+  }, [refreshData]);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
     setCart([]);
     setCartNotes('');
@@ -310,12 +363,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [cart]);
 
   const createOrderFromCart = useCallback(
-    (status: OrderStatus): BranchOrder | null => {
+    async (status: OrderStatus): Promise<BranchOrder | null> => {
       if (!currentUser?.branchId || cart.length === 0) return null;
 
       const now = new Date().toISOString();
-      const shouldReserveStock = status !== 'draft';
-      let nextBatches = stockBatches;
       const newOrder: BranchOrder = {
         id: `order-${Date.now()}`,
         orderNumber: generateOrderNumber(),
@@ -326,48 +377,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updatedAt: now,
         lines: cart.map((item, idx) => {
           const stock = stockItems.find((stockItem) => stockItem.id === item.stockItemId)!;
-          const allocationResult = shouldReserveStock
-            ? allocateFefo(nextBatches, item.stockItemId, item.quantity)
-            : { nextBatches, allocations: [] };
-          nextBatches = allocationResult.nextBatches;
 
           return {
             id: `line-${Date.now()}-${idx}`,
             stockItemId: item.stockItemId,
             quantity: item.quantity,
             unitPrice: stock.price,
-            allocations: allocationResult.allocations,
+            allocations: [],
             note: item.note,
           };
         }),
         notes: cartNotes || undefined,
       };
 
-      // TODO: Replace with API call to backend (Supabase/Firebase/PostgreSQL)
-      setOrders((prev) => [newOrder, ...prev]);
-      if (shouldReserveStock) {
-        const changedStockItemIds = cart.map((item) => item.stockItemId);
-        setStockBatches(nextBatches);
-        setInventory((prev) => syncInventoryWithBatches(prev, nextBatches, changedStockItemIds));
-        setStockMovements((prev) => [
-          ...newOrder.lines.flatMap((line) =>
-            (line.allocations ?? []).map((allocation, index) => ({
-              id: `mov-${Date.now()}-${line.id}-${index}`,
-              stockItemId: line.stockItemId,
-              warehouseId: 'warehouse-1',
-              type: 'pick' as const,
-              quantity: -allocation.quantity,
-              date: getDateKey(),
-              batchId: allocation.batchId,
-              batchNumber: allocation.batchNumber,
-              orderId: newOrder.id,
-              branchId: newOrder.branchId,
-              note: newOrder.orderNumber,
-            }))
-          ),
-          ...prev,
-        ]);
+      const { error } = await supabase.rpc('create_order', {
+        p_branch_id: currentUser.branchId,
+        p_status: status,
+        p_notes: cartNotes || null,
+        p_lines: cart.map((item) => ({
+          stock_item_id: item.stockItemId,
+          quantity: item.quantity,
+          note: item.note ?? null,
+        })),
+      });
+
+      if (error) {
+        setDataError(error.message);
+        return null;
       }
+
+      setOrders((prev) => [newOrder, ...prev]);
       addAuditEvent({
         entityType: 'order',
         entityId: newOrder.id,
@@ -393,17 +432,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ]);
       }
       clearCart();
+      await refreshData();
       return newOrder;
     },
-    [currentUser, cart, cartNotes, stockItems, stockBatches, addAuditEvent, addNotification, clearCart]
+    [currentUser, cart, cartNotes, stockItems, addAuditEvent, addNotification, clearCart, refreshData]
   );
 
   const submitOrder = useCallback(() => createOrderFromCart('submitted'), [createOrderFromCart]);
   const saveDraft = useCallback(() => createOrderFromCart('draft'), [createOrderFromCart]);
 
-  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
-    // TODO: Replace with API call
+  const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     const order = orders.find((o) => o.id === orderId);
+    const { error } = await supabase.rpc('update_order_status', {
+      p_order_id: orderId,
+      p_status: status,
+    });
+
+    if (error) {
+      setDataError(error.message);
+      return;
+    }
+
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId ? { ...o, status, updatedAt: new Date().toISOString() } : o
@@ -421,7 +470,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       body: `${order?.orderNumber ?? 'Order'} is now ${status.replace(/_/g, ' ')}.`,
       targetRoute: `/(main)/order-detail/${orderId}`,
     });
-  }, [addAuditEvent, addNotification, orders]);
+    await refreshData();
+  }, [addAuditEvent, addNotification, orders, refreshData]);
 
   const updateDeliveryStopStatus = useCallback(
     (deliveryId: string, stopId: string, status: DeliveryStop['status']) => {
@@ -497,9 +547,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const updateStockItemPrice = useCallback(
-    (stockItemId: string, price: number) => {
+    async (stockItemId: string, price: number) => {
       const cleanPrice = Math.max(0, Number.isFinite(price) ? price : 0);
       const stock = stockItems.find((item) => item.id === stockItemId);
+      const { error } = await supabase.rpc('update_stock_price', {
+        p_stock_item_id: stockItemId,
+        p_price: cleanPrice,
+      });
+
+      if (error) {
+        setDataError(error.message);
+        return;
+      }
 
       setStockItems((prev) =>
         prev.map((item) => (item.id === stockItemId ? { ...item, price: cleanPrice } : item))
@@ -510,25 +569,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
         action: 'Stock item price updated',
         note: `${stock?.name ?? stockItemId}: $${cleanPrice.toFixed(2)}`,
       });
+      await refreshData();
     },
-    [addAuditEvent, stockItems]
+    [addAuditEvent, refreshData, stockItems]
   );
 
   const receiveStock = useCallback(
-    (
+    async (
       items: {
         stockItemId: string;
         quantity: number;
         batchNumber: string;
-        productionDate: string;
-        expiryDate: string;
+        productionDate?: string;
+        expiryDate?: string;
         supplierId?: string;
       }[],
       note = 'Supplier delivery'
     ) => {
       const now = new Date().toISOString();
       const date = getDateKey();
-      const warehouseId = currentUser?.warehouseId ?? 'warehouse-1';
+      const warehouseId = currentUser?.warehouseId ?? warehouses[0]?.id;
+      const supplierId = items.find((item) => item.supplierId)?.supplierId;
+
+      if (!warehouseId) {
+        setDataError('No warehouse is configured');
+        return;
+      }
+
+      const { error } = await supabase.rpc('receive_stock', {
+        p_warehouse_id: warehouseId,
+        p_supplier_id: supplierId ?? null,
+        p_note: note,
+        p_items: items.map((item) => ({
+          stock_item_id: item.stockItemId,
+          quantity: item.quantity,
+          batch_number: item.batchNumber,
+          production_date: item.productionDate ?? null,
+          expiry_date: item.expiryDate ?? null,
+        })),
+      });
+
+      if (error) {
+        setDataError(error.message);
+        return;
+      }
+
       const receivedBatches: StockBatch[] = items.map((item, index) => ({
         id: `batch-${Date.now()}-${index}`,
         stockItemId: item.stockItemId,
@@ -558,7 +643,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           date,
           batchId: receivedBatches[index].id,
           batchNumber: item.batchNumber,
-          note: `${note} - prod ${item.productionDate}, exp ${item.expiryDate}`,
+          note: item.productionDate && item.expiryDate ? `${note} - prod ${item.productionDate}, exp ${item.expiryDate}` : note,
         })),
         ...prev,
       ]);
@@ -585,8 +670,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         },
         ...prev,
       ]);
+      await refreshData();
     },
-    [addAuditEvent, addNotification, currentUser, stockBatches]
+    [addAuditEvent, addNotification, currentUser, refreshData, stockBatches, warehouses]
   );
 
   const markNotificationRead = useCallback((notificationId: string) => {
@@ -613,6 +699,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentUser,
         login,
         logout,
+        isLoading,
+        dataError,
+        refreshData,
+        branches,
+        suppliers,
+        warehouses,
         orders,
         deliveries,
         invoices,

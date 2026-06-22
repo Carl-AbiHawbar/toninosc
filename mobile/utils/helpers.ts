@@ -13,6 +13,8 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   invoiced: 'Invoiced',
   paid: 'Paid',
   problem: 'Problem',
+  cancel_requested: 'Cancel Requested',
+  cancelled: 'Cancelled',
 };
 
 export function getStatusColor(status: OrderStatus, palette: AppColors = colors): string {
@@ -33,6 +35,8 @@ export function getStatusColor(status: OrderStatus, palette: AppColors = colors)
     case 'invoiced':
       return palette.info;
     case 'problem':
+    case 'cancel_requested':
+    case 'cancelled':
       return palette.statusProblem;
     default:
       return palette.textSecondary;
