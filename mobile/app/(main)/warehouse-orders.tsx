@@ -28,7 +28,13 @@ export default function WarehouseOrdersScreen() {
   const { orders, branches, stockItems, inventory, updateOrderStatus, language, themeColors, t } = useApp();
 
   const handleAction = async (orderId: string, status: OrderStatus) => {
-    await updateOrderStatus(orderId, status);
+    const result = await updateOrderStatus(orderId, status);
+    if (!result.ok) {
+      Alert.alert(
+        language === 'ar' ? 'تعذر تحديث الطلب' : 'Could not update order',
+        result.error ?? (language === 'ar' ? 'تحقق من المخزون وحاول مرة أخرى.' : 'Check available stock and try again.')
+      );
+    }
   };
 
   const handleEditQuantities = () => {

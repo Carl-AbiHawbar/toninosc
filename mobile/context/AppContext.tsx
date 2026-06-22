@@ -79,7 +79,7 @@ interface AppContextType {
   getCartItemCount: () => number;
   submitOrder: () => Promise<BranchOrder | null>;
   saveDraft: () => Promise<BranchOrder | null>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<{ ok: boolean; error?: string }>;
   updateDeliveryStopStatus: (deliveryId: string, stopId: string, status: DeliveryStop['status']) => void;
   markInvoicePaid: (invoiceId: string) => void;
   addInvoicePayment: (invoiceId: string, amount: number, method?: string) => void;
@@ -443,6 +443,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     const order = orders.find((o) => o.id === orderId);
+    setDataError(null);
     const { error } = await supabase.rpc('update_order_status', {
       p_order_id: orderId,
       p_status: status,
@@ -450,7 +451,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (error) {
       setDataError(error.message);
-      return;
+      return { ok: false, error: error.message };
     }
 
     setOrders((prev) =>
@@ -471,6 +472,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       targetRoute: `/(main)/order-detail/${orderId}`,
     });
     await refreshData();
+    return { ok: true };
   }, [addAuditEvent, addNotification, orders, refreshData]);
 
   const updateDeliveryStopStatus = useCallback(
