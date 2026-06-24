@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react';
-import { Alert, Text, View, ScrollView, StyleSheet, SafeAreaView, TextInput, TouchableOpacity } from 'react-native';
+import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { AppCard } from '@/components/AppCard';
 import { AppButton } from '@/components/AppButton';
-import { SearchBar } from '@/components/SearchBar';
+import { AppCard } from '@/components/AppCard';
 import { QuantityStepper } from '@/components/QuantityStepper';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { SearchBar } from '@/components/SearchBar';
 import { useApp } from '@/context/AppContext';
+import { StockItemSupplier } from '@/types';
 import { borderRadius, spacing } from '@/theme/spacing';
 
 type ReceiveLine = {
   stockItemId: string;
+  supplierId: string;
   quantity: number;
   batchNumber: string;
   productionDate?: string;
@@ -24,31 +26,38 @@ export default function ReceiveStockScreen() {
   const isArabic = language === 'ar';
   const canReceiveStock = currentUser?.role === 'admin' || currentUser?.role === 'warehouse';
   const [search, setSearch] = useState('');
-  const [supplierId, setSupplierId] = useState('');
   const [note, setNote] = useState('');
   const [lines, setLines] = useState<ReceiveLine[]>([]);
-  const [datePicker, setDatePicker] = useState<{
-    stockItemId: string;
-    field: 'productionDate' | 'expiryDate';
-  } | null>(null);
-
-  const selectedSupplier = suppliers.find((supplier) => supplier.id === supplierId);
-  const lineCount = lines.reduce((sum, line) => sum + line.quantity, 0);
+  const [datePicker, setDatePicker] = useState<{ stockItemId: string; field: 'productionDate' | 'expiryDate' } | null>(null);
 
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     return stockItems
-      .filter((item) => {
-        if (!query) return true;
-        return `${item.name} ${item.category} ${item.unit}`.toLowerCase().includes(query);
-      })
+      .filter((item) => !query || `${item.name} ${item.category} ${item.unit}`.toLowerCase().includes(query))
       .slice(0, 40);
   }, [search, stockItems]);
 
-  const getQuantity = (stockItemId: string) =>
-    lines.find((line) => line.stockItemId === stockItemId)?.quantity ?? 0;
-
+  const lineCount = lines.reduce((sum, line) => sum + line.quantity, 0);
   const getLine = (stockItemId: string) => lines.find((line) => line.stockItemId === stockItemId);
+  const getQuantity = (stockItemId: string) => getLine(stockItemId)?.quantity ?? 0;
+
+  const getItemSupplierOptions = (item: typeof stockItems[number]): StockItemSupplier[] => {
+    if (item.suppliers?.length) return item.suppliers;
+
+    return suppliers.map((supplier) => ({
+      id: supplier.id,
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+      isPrimary: supplier.id === item.supplierId,
+      active: true,
+    }));
+  };
+
+  const getDefaultSupplierId = (stockItemId: string) => {
+    const item = stockItems.find((stock) => stock.id === stockItemId);
+    const primarySupplier = item?.suppliers?.find((supplier) => supplier.isPrimary && supplier.active);
+    return primarySupplier?.supplierId ?? item?.supplierId ?? item?.suppliers?.[0]?.supplierId ?? suppliers[0]?.id ?? '';
+  };
 
   const updateQuantity = (stockItemId: string, quantity: number) => {
     setLines((prev) => {
@@ -61,6 +70,7 @@ export default function ReceiveStockScreen() {
         ...prev,
         {
           stockItemId,
+          supplierId: getDefaultSupplierId(stockItemId),
           quantity,
           batchNumber: '',
           productionDate: '',
@@ -70,7 +80,11 @@ export default function ReceiveStockScreen() {
     });
   };
 
-  const updateLineField = (stockItemId: string, field: keyof Omit<ReceiveLine, 'stockItemId' | 'quantity'>, value: string) => {
+  const updateLineField = (
+    stockItemId: string,
+    field: keyof Omit<ReceiveLine, 'stockItemId' | 'quantity'>,
+    value: string
+  ) => {
     setLines((prev) => prev.map((line) => (line.stockItemId === stockItemId ? { ...line, [field]: value } : line)));
   };
 
@@ -90,13 +104,13 @@ export default function ReceiveStockScreen() {
 
   const handleConfirm = async () => {
     if (lines.length === 0) {
-      Alert.alert(isArabic ? 'لا توجد مواد' : 'No items', isArabic ? 'أضف مواد قبل التأكيد.' : 'Add items before confirming.');
+      Alert.alert(isArabic ? 'No items' : 'No items', isArabic ? 'Add items before confirming.' : 'Add items before confirming.');
       return;
     }
 
     const invalidLine = lines.find((line) => {
       const stock = stockItems.find((item) => item.id === line.stockItemId);
-      if (!line.batchNumber.trim()) return true;
+      if (!line.supplierId || !line.batchNumber.trim()) return true;
       if (stock?.requiresExpiry === false) return false;
       if (!line.productionDate || !line.expiryDate) return true;
       return new Date(line.expiryDate) <= new Date(line.productionDate);
@@ -106,21 +120,16 @@ export default function ReceiveStockScreen() {
       Alert.alert(
         isArabic ? 'Batch details required' : 'Batch details required',
         isArabic
-          ? 'Each item needs a batch number, production date, and expiry date.'
-          : 'Each item needs a batch number, production date, and expiry date. Expiry must be after production.'
+          ? 'Each item needs supplier, batch number, production date, and expiry date.'
+          : 'Each item needs supplier, batch number, production date, and expiry date. Expiry must be after production.'
       );
       return;
     }
 
-    const activeSupplierId = supplierId || suppliers[0]?.id;
-
-    await receiveStock(
-      lines.map((line) => ({ ...line, supplierId: activeSupplierId })),
-      `${selectedSupplier?.name ?? 'Supplier'}${note ? ` - ${note}` : ''}`
-    );
+    await receiveStock(lines, note || 'Supplier delivery');
     Alert.alert(
-      isArabic ? 'تم الاستلام' : 'Stock received',
-      isArabic ? 'تمت إضافة الكميات إلى المخزون.' : 'Quantities were added to storage.',
+      isArabic ? 'Stock received' : 'Stock received',
+      isArabic ? 'Quantities were added to storage.' : 'Quantities were added to storage.',
       [{ text: 'OK', onPress: () => router.replace('/(main)/inventory') }]
     );
   };
@@ -129,10 +138,10 @@ export default function ReceiveStockScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
         <View style={styles.container}>
-          <ScreenHeader title={isArabic ? 'غير مسموح' : 'Not Allowed'} />
+          <ScreenHeader title={isArabic ? 'Not allowed' : 'Not allowed'} />
           <AppCard>
-            <Text style={[styles.emptyText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
-              {isArabic ? 'استلام المخزون متاح للمدير والمستودع فقط.' : 'Receiving stock is available to admin and warehouse users only.'}
+            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
+              {isArabic ? 'Receiving stock is available to admin and warehouse users only.' : 'Receiving stock is available to admin and warehouse users only.'}
             </Text>
           </AppCard>
         </View>
@@ -144,25 +153,9 @@ export default function ReceiveStockScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
         <ScreenHeader
-          title={isArabic ? 'استلام مخزون' : 'Receive Stock'}
-          subtitle={isArabic ? 'أضف كميات وصلت من المورد' : 'Add supplier delivery quantities'}
+          title={isArabic ? 'Receive stock' : 'Receive stock'}
+          subtitle={isArabic ? 'Add supplier delivery quantities' : 'Add supplier delivery quantities'}
         />
-
-        <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>
-          {isArabic ? 'المورد' : 'Supplier'}
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.supplierScroll}>
-          {suppliers.map((supplier) => (
-            <AppButton
-              key={supplier.id}
-              title={supplier.name}
-              onPress={() => setSupplierId(supplier.id)}
-              variant={(supplierId || suppliers[0]?.id) === supplier.id ? 'primary' : 'outline'}
-              style={styles.supplierButton}
-              textStyle={styles.supplierText}
-            />
-          ))}
-        </ScrollView>
 
         <TextInput
           style={[
@@ -177,23 +170,23 @@ export default function ReceiveStockScreen() {
           ]}
           value={note}
           onChangeText={setNote}
-          placeholder={isArabic ? 'رقم فاتورة المورد أو ملاحظة...' : 'Supplier invoice number or note...'}
+          placeholder={isArabic ? 'Supplier invoice number or note...' : 'Supplier invoice number or note...'}
           placeholderTextColor={themeColors.textSecondary}
         />
 
         <SearchBar
           value={search}
           onChangeText={setSearch}
-          placeholder={isArabic ? 'ابحث عن مادة...' : 'Search stock items...'}
+          placeholder={isArabic ? 'Search stock items...' : 'Search stock items...'}
         />
 
         {lines.length > 0 && (
           <AppCard style={styles.summaryCard}>
-            <Text style={[styles.summaryText, { color: themeColors.text }, isArabic && styles.rtlText]}>
-              {isArabic ? `${lines.length} مواد، ${lineCount} كمية إجمالية` : `${lines.length} items, ${lineCount} total quantity`}
+            <Text style={[styles.summaryText, { color: themeColors.text }]}>
+              {lines.length} items, {lineCount} total quantity
             </Text>
             <AppButton
-              title={isArabic ? 'تأكيد الاستلام' : 'Confirm Receipt'}
+              title={isArabic ? 'Confirm receipt' : 'Confirm receipt'}
               onPress={handleConfirm}
               variant="success"
               style={styles.confirmButton}
@@ -207,18 +200,26 @@ export default function ReceiveStockScreen() {
           const quantity = getQuantity(item.id);
           const line = getLine(item.id);
           const needsExpiry = item.requiresExpiry !== false;
+          const itemSuppliers = getItemSupplierOptions(item);
+          const selectedSupplier = itemSuppliers.find((supplier) => supplier.supplierId === line?.supplierId);
 
           return (
             <AppCard key={item.id} style={styles.itemCard}>
               <View style={styles.itemRow}>
                 <Text style={styles.emoji}>{item.imageEmoji}</Text>
                 <View style={styles.itemInfo}>
-                  <Text style={[styles.itemName, { color: themeColors.text }, isArabic && styles.rtlText]}>{item.name}</Text>
-                  <Text style={[styles.itemMeta, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
-                    {isArabic ? 'حالي' : 'Current'}: {inv?.currentStock ?? 0} {item.unit}
+                  <Text style={[styles.itemName, { color: themeColors.text }]}>{item.name}</Text>
+                  <Text style={[styles.itemMeta, { color: themeColors.textSecondary }]}>
+                    Current: {inv?.currentStock ?? 0} {item.unit}
                   </Text>
+                  {item.suppliers?.length ? (
+                    <Text style={[styles.itemMeta, { color: themeColors.textSecondary }]}>
+                      {item.suppliers.length} supplier option{item.suppliers.length === 1 ? '' : 's'}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
+
               <View style={styles.stepperRow}>
                 <QuantityStepper
                   quantity={quantity}
@@ -226,8 +227,26 @@ export default function ReceiveStockScreen() {
                   onDecrease={() => updateQuantity(item.id, quantity - 1)}
                 />
               </View>
+
               {line && (
                 <View style={styles.batchFields}>
+                  <Text style={[styles.fieldLabel, { color: themeColors.textSecondary }]}>Supplier</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.supplierScroll}>
+                    {itemSuppliers.map((supplier) => (
+                      <AppButton
+                        key={supplier.id}
+                        title={supplier.supplierName}
+                        onPress={() => updateLineField(item.id, 'supplierId', supplier.supplierId)}
+                        variant={line.supplierId === supplier.supplierId ? 'primary' : 'outline'}
+                        style={styles.supplierButton}
+                        textStyle={styles.supplierText}
+                      />
+                    ))}
+                  </ScrollView>
+                  {selectedSupplier?.isPrimary ? (
+                    <Text style={[styles.primarySupplierText, { color: themeColors.success }]}>Primary supplier</Text>
+                  ) : null}
+
                   <TextInput
                     style={[
                       styles.batchInput,
@@ -238,48 +257,37 @@ export default function ReceiveStockScreen() {
                     placeholder={isArabic ? 'Batch number' : 'Batch number'}
                     placeholderTextColor={themeColors.textSubtle}
                   />
+
                   {needsExpiry ? (
                     <View style={styles.dateRow}>
                       <TouchableOpacity
-                        style={[
-                          styles.dateInput,
-                          { backgroundColor: themeColors.background, borderColor: themeColors.border },
-                        ]}
+                        style={[styles.dateInput, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}
                         onPress={() => setDatePicker({ stockItemId: item.id, field: 'productionDate' })}
                       >
                         <Text style={[styles.dateText, { color: line.productionDate ? themeColors.text : themeColors.textSubtle }]}>
-                          {line.productionDate || (isArabic ? 'Production date' : 'Production date')}
+                          {line.productionDate || 'Production date'}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[
-                          styles.dateInput,
-                          { backgroundColor: themeColors.background, borderColor: themeColors.border },
-                        ]}
+                        style={[styles.dateInput, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}
                         onPress={() => setDatePicker({ stockItemId: item.id, field: 'expiryDate' })}
                       >
                         <Text style={[styles.dateText, { color: line.expiryDate ? themeColors.text : themeColors.textSubtle }]}>
-                          {line.expiryDate || (isArabic ? 'Expiry date' : 'Expiry date')}
+                          {line.expiryDate || 'Expiry date'}
                         </Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <Text style={[styles.noExpiryText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
-                      {isArabic ? 'لا يحتاج تاريخ انتهاء' : 'No expiry required'}
-                    </Text>
+                    <Text style={[styles.noExpiryText, { color: themeColors.textSecondary }]}>No expiry required</Text>
                   )}
                 </View>
               )}
             </AppCard>
           );
         })}
+
         {datePicker && (
-          <DateTimePicker
-            value={getPickerDate()}
-            mode="date"
-            display="default"
-            onChange={handleDateChange}
-          />
+          <DateTimePicker value={getPickerDate()} mode="date" display="default" onChange={handleDateChange} />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -289,10 +297,6 @@ export default function ReceiveStockScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: spacing.sm },
-  supplierScroll: { marginBottom: spacing.md, maxHeight: 52 },
-  supplierButton: { marginRight: spacing.sm, minHeight: 42, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
-  supplierText: { fontSize: 13 },
   noteInput: {
     borderWidth: 1,
     borderRadius: borderRadius.md,
@@ -314,6 +318,11 @@ const styles = StyleSheet.create({
   itemMeta: { fontSize: 13, marginTop: 2 },
   stepperRow: { marginTop: spacing.sm, alignItems: 'flex-end' },
   batchFields: { marginTop: spacing.md, gap: spacing.sm },
+  fieldLabel: { fontSize: 13, fontWeight: '800' },
+  supplierScroll: { maxHeight: 48 },
+  supplierButton: { marginRight: spacing.sm, minHeight: 40, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
+  supplierText: { fontSize: 13 },
+  primarySupplierText: { fontSize: 12, fontWeight: '800' },
   batchInput: {
     borderWidth: 1,
     borderRadius: borderRadius.md,
@@ -330,14 +339,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     justifyContent: 'center',
   },
-  dateText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  dateText: { fontSize: 13, fontWeight: '700' },
   noExpiryText: { fontSize: 13, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center' },
-  rtlText: {
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
 });

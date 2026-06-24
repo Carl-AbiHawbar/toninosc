@@ -6,6 +6,7 @@ import {
   InventoryBalance,
   StockBatch,
   StockItem,
+  StockItemSupplier,
   Supplier,
   User,
   Warehouse,
@@ -38,6 +39,19 @@ type SupplierRow = {
   phone: string | null;
   email: string | null;
   lead_time_days: number;
+};
+
+type SupplierItemRow = {
+  id: string;
+  supplier_id: string;
+  stock_item_id: string;
+  supplier_unit: string | null;
+  last_price: number | string | null;
+  is_primary: boolean;
+  active: boolean;
+  suppliers?: {
+    name: string;
+  } | null;
 };
 
 type WarehouseRow = {
@@ -163,7 +177,7 @@ function mapBranch(row: BranchRow): Branch {
   };
 }
 
-function mapSupplier(row: SupplierRow): Supplier {
+function mapSupplier(row: SupplierRow, suppliedItemIds: string[] = []): Supplier {
   return {
     id: row.id,
     name: row.name,
@@ -171,6 +185,7 @@ function mapSupplier(row: SupplierRow): Supplier {
     phone: row.phone ?? '',
     email: row.email ?? '',
     leadTimeDays: row.lead_time_days,
+    suppliedItemIds,
   };
 }
 
@@ -183,7 +198,21 @@ function mapWarehouse(row: WarehouseRow): Warehouse {
   };
 }
 
-function mapStockItem(row: StockItemRow): StockItem {
+function mapSupplierItem(row: SupplierItemRow): StockItemSupplier {
+  return {
+    id: row.id,
+    supplierId: row.supplier_id,
+    supplierName: row.suppliers?.name ?? 'Supplier',
+    supplierUnit: row.supplier_unit ?? undefined,
+    lastPrice: row.last_price == null ? undefined : numberValue(row.last_price),
+    isPrimary: row.is_primary,
+    active: row.active,
+  };
+}
+
+function mapStockItem(row: StockItemRow, suppliers: StockItemSupplier[] = []): StockItem {
+  const primarySupplier = suppliers.find((supplier) => supplier.isPrimary && supplier.active);
+
   return {
     id: row.id,
     name: row.name,
@@ -192,7 +221,8 @@ function mapStockItem(row: StockItemRow): StockItem {
     price: numberValue(row.price),
     imageEmoji: stockEmoji(row.category),
     averageOrderQty: numberValue(row.average_order_qty),
-    supplierId: row.supplier_id ?? undefined,
+    supplierId: primarySupplier?.supplierId ?? row.supplier_id ?? undefined,
+    suppliers,
     requiresExpiry: row.requires_expiry,
   };
 }
@@ -273,9 +303,17 @@ export async function fetchLiveData(): Promise<LiveData> {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id;
 
-  const [branches, suppliers, warehouses, stockItems, stockBatches, orders, profile] = await Promise.all([
+  const [branches, suppliers, supplierItems, warehouses, stockItems, stockBatches, orders, profile] = await Promise.all([
     requireData(supabase.from('branches').select('*').eq('active', true).order('name'), 'Branches load'),
     requireData(supabase.from('suppliers').select('*').eq('active', true).order('name'), 'Suppliers load'),
+    requireData(
+      supabase
+        .from('supplier_items')
+        .select('*, suppliers(name)')
+        .eq('active', true)
+        .order('is_primary', { ascending: false }),
+      'Supplier item sources load'
+    ),
     requireData(supabase.from('warehouses').select('*').eq('active', true).order('name'), 'Warehouses load'),
     requireData(supabase.from('stock_items').select('*').eq('active', true).order('name'), 'Stock items load'),
     requireData(supabase.from('stock_batches').select('*').order('expiry_date', { nullsFirst: false }), 'Stock batches load'),
@@ -292,13 +330,32 @@ export async function fetchLiveData(): Promise<LiveData> {
   ]);
 
   const mappedWarehouses = (warehouses as WarehouseRow[]).map(mapWarehouse);
-  const mappedStockItems = (stockItems as StockItemRow[]).map(mapStockItem);
+  const supplierItemsByStockItem = new Map<string, StockItemSupplier[]>();
+  const supplierItemIdsBySupplier = new Map<string, string[]>();
+
+  (supplierItems as SupplierItemRow[]).forEach((row) => {
+    const mapped = mapSupplierItem(row);
+    supplierItemsByStockItem.set(row.stock_item_id, [
+      ...(supplierItemsByStockItem.get(row.stock_item_id) ?? []),
+      mapped,
+    ]);
+    supplierItemIdsBySupplier.set(row.supplier_id, [
+      ...(supplierItemIdsBySupplier.get(row.supplier_id) ?? []),
+      row.stock_item_id,
+    ]);
+  });
+
+  const mappedStockItems = (stockItems as StockItemRow[]).map((item) =>
+    mapStockItem(item, supplierItemsByStockItem.get(item.id) ?? [])
+  );
   const mappedBatches = (stockBatches as StockBatchRow[]).map(mapStockBatch);
 
   return {
     currentUser: mapProfile(profile as ProfileRow | null, mappedWarehouses),
     branches: (branches as BranchRow[]).map(mapBranch),
-    suppliers: (suppliers as SupplierRow[]).map(mapSupplier),
+    suppliers: (suppliers as SupplierRow[]).map((supplier) =>
+      mapSupplier(supplier, supplierItemIdsBySupplier.get(supplier.id) ?? [])
+    ),
     warehouses: mappedWarehouses,
     stockItems: mappedStockItems,
     stockBatches: mappedBatches,

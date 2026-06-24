@@ -95,6 +95,7 @@ interface AppContextType {
     }[],
     note?: string
   ) => Promise<void>;
+  setPrimarySupplier: (stockItemId: string, supplierId: string) => Promise<{ ok: boolean; error?: string }>;
   markNotificationRead: (notificationId: string) => void;
   getVisibleNotifications: () => AppNotification[];
 }
@@ -591,8 +592,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
       const date = getDateKey();
       const warehouseId = currentUser?.warehouseId ?? warehouses[0]?.id;
-      const supplierId = items.find((item) => item.supplierId)?.supplierId;
-
       if (!warehouseId) {
         setDataError('No warehouse is configured');
         return;
@@ -600,10 +599,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const { error } = await supabase.rpc('receive_stock', {
         p_warehouse_id: warehouseId,
-        p_supplier_id: supplierId ?? null,
+        p_supplier_id: null,
         p_note: note,
         p_items: items.map((item) => ({
           stock_item_id: item.stockItemId,
+          supplier_id: item.supplierId ?? null,
           quantity: item.quantity,
           batch_number: item.batchNumber,
           production_date: item.productionDate ?? null,
@@ -677,6 +677,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [addAuditEvent, addNotification, currentUser, refreshData, stockBatches, warehouses]
   );
 
+  const setPrimarySupplier = useCallback(
+    async (stockItemId: string, supplierId: string) => {
+      const { error } = await supabase.rpc('set_primary_supplier', {
+        p_stock_item_id: stockItemId,
+        p_supplier_id: supplierId,
+      });
+
+      if (error) {
+        setDataError(error.message);
+        return { ok: false, error: error.message };
+      }
+
+      await refreshData();
+      return { ok: true };
+    },
+    [refreshData]
+  );
+
   const markNotificationRead = useCallback((notificationId: string) => {
     setNotifications((prev) =>
       prev.map((notification) =>
@@ -743,6 +761,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addInvoicePayment,
         updateStockItemPrice,
         receiveStock,
+        setPrimarySupplier,
         markNotificationRead,
         getVisibleNotifications,
       }}

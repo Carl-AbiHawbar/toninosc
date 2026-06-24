@@ -92,7 +92,18 @@ export interface StockItem {
   imageEmoji: string;
   averageOrderQty: number;
   supplierId?: string;
+  suppliers?: StockItemSupplier[];
   requiresExpiry?: boolean;
+}
+
+export interface StockItemSupplier {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  supplierUnit?: string;
+  lastPrice?: number;
+  isPrimary: boolean;
+  active: boolean;
 }
 
 export interface MenuItem {
@@ -125,6 +136,7 @@ export interface Supplier {
   phone: string;
   email: string;
   leadTimeDays: number;
+  suppliedItemIds?: string[];
 }
 
 export interface InventoryBalance {

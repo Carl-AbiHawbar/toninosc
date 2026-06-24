@@ -63,6 +63,7 @@ export default function HomeScreen() {
         <AppButton title={t('allBranchOrders')} onPress={() => router.push('/(main)/admin-orders')} />
         <AppButton title={t('allBranches')} onPress={() => router.push('/(main)/admin-branches')} variant="outline" />
         <AppButton title={t('inventoryOverview')} onPress={() => router.push('/(main)/inventory')} variant="outline" />
+        <AppButton title={isArabic ? 'Suppliers' : 'Suppliers'} onPress={() => router.push('/(main)/suppliers' as never)} variant="outline" />
         <AppButton title={t('reports')} onPress={() => router.push('/(main)/reports')} variant="outline" />
         <AppButton title={t('alerts')} onPress={() => router.push('/(main)/alerts')} variant="outline" />
         <AppButton title={t('users')} onPress={() => router.push('/(main)/settings')} variant="outline" />
@@ -81,6 +82,7 @@ export default function HomeScreen() {
       <View style={styles.buttonStack}>
         <AppButton title={t('warehouseOrders')} onPress={() => router.push('/(main)/warehouse-orders')} />
         <AppButton title={t('inventory')} onPress={() => router.push('/(main)/inventory')} variant="outline" />
+        <AppButton title={isArabic ? 'Suppliers' : 'Suppliers'} onPress={() => router.push('/(main)/suppliers' as never)} variant="outline" />
         <AppButton title={t('alerts')} onPress={() => router.push('/(main)/alerts')} variant="outline" />
       </View>
     </>

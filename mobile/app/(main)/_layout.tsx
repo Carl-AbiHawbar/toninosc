@@ -18,6 +18,7 @@ export default function MainLayout() {
       <Stack.Screen name="order-detail/[id]" />
       <Stack.Screen name="warehouse-orders" />
       <Stack.Screen name="inventory" />
+      <Stack.Screen name="suppliers" />
       <Stack.Screen name="driver-deliveries" />
       <Stack.Screen name="driver-delivery/[id]" />
       <Stack.Screen name="invoices" />
