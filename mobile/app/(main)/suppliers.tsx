@@ -1,4 +1,4 @@
-import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AppButton } from '@/components/AppButton';
 import { AppCard } from '@/components/AppCard';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -8,8 +8,16 @@ import { spacing } from '@/theme/spacing';
 import { useMemo, useState } from 'react';
 
 export default function SuppliersScreen() {
-  const { currentUser, suppliers, stockItems, language, themeColors, setPrimarySupplier } = useApp();
+  const { currentUser, suppliers, stockItems, language, themeColors, setPrimarySupplier, upsertSupplier } = useApp();
   const [search, setSearch] = useState('');
+  const [supplierEditor, setSupplierEditor] = useState<{
+    id?: string;
+    name: string;
+    contactName: string;
+    phone: string;
+    email: string;
+    leadTimeDays: string;
+  } | null>(null);
   const isArabic = language === 'ar';
   const canManage = currentUser?.role === 'admin' || currentUser?.role === 'warehouse';
 
@@ -18,6 +26,31 @@ export default function SuppliersScreen() {
     if (!result.ok) {
       Alert.alert(isArabic ? 'Could not update supplier' : 'Could not update supplier', result.error ?? 'Try again.');
     }
+  };
+
+  const saveSupplier = async () => {
+    if (!supplierEditor) return;
+    const leadTimeDays = Number.parseInt(supplierEditor.leadTimeDays, 10);
+    if (!supplierEditor.name.trim()) {
+      Alert.alert('Invalid supplier', 'Supplier name is required.');
+      return;
+    }
+
+    const result = await upsertSupplier({
+      id: supplierEditor.id,
+      name: supplierEditor.name.trim(),
+      contactName: supplierEditor.contactName.trim(),
+      phone: supplierEditor.phone.trim(),
+      email: supplierEditor.email.trim(),
+      leadTimeDays: Number.isFinite(leadTimeDays) ? leadTimeDays : 0,
+    });
+
+    if (!result.ok) {
+      Alert.alert('Could not save supplier', result.error ?? 'Try again.');
+      return;
+    }
+
+    setSupplierEditor(null);
   };
 
   const supplierCards = useMemo(() => {
@@ -58,6 +91,14 @@ export default function SuppliersScreen() {
           placeholder={isArabic ? 'Search suppliers or items...' : 'Search suppliers or items...'}
         />
 
+        {currentUser?.role === 'admin' && (
+          <AppButton
+            title={isArabic ? 'Add supplier' : 'Add supplier'}
+            onPress={() => setSupplierEditor({ name: '', contactName: '', phone: '', email: '', leadTimeDays: '0' })}
+            style={styles.addButton}
+          />
+        )}
+
         {supplierCards.map(({ supplier, suppliedItems }) => (
           <AppCard key={supplier.id} style={styles.card}>
             <View style={styles.header}>
@@ -72,6 +113,23 @@ export default function SuppliersScreen() {
               </View>
               <Text style={[styles.count, { color: themeColors.primary }]}>{suppliedItems.length}</Text>
             </View>
+            {currentUser?.role === 'admin' && (
+              <TouchableOpacity
+                style={[styles.editSupplierButton, { borderColor: themeColors.border }]}
+                onPress={() =>
+                  setSupplierEditor({
+                    id: supplier.id,
+                    name: supplier.name,
+                    contactName: supplier.contactName,
+                    phone: supplier.phone,
+                    email: supplier.email,
+                    leadTimeDays: String(supplier.leadTimeDays),
+                  })
+                }
+              >
+                <Text style={[styles.editSupplierText, { color: themeColors.primary }]}>Edit supplier</Text>
+              </TouchableOpacity>
+            )}
 
             {suppliedItems.length === 0 ? (
               <Text style={[styles.empty, { color: themeColors.textSecondary }]}>No supplied items linked yet.</Text>
@@ -108,6 +166,27 @@ export default function SuppliersScreen() {
           </AppCard>
         ))}
       </ScrollView>
+
+      <Modal visible={!!supplierEditor} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: themeColors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+              {supplierEditor?.id ? 'Edit supplier' : 'Add supplier'}
+            </Text>
+            <TextInput style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]} value={supplierEditor?.name ?? ''} onChangeText={(value) => setSupplierEditor((prev) => (prev ? { ...prev, name: value } : prev))} placeholder="Supplier name" placeholderTextColor={themeColors.textSecondary} />
+            <TextInput style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]} value={supplierEditor?.contactName ?? ''} onChangeText={(value) => setSupplierEditor((prev) => (prev ? { ...prev, contactName: value } : prev))} placeholder="Contact name" placeholderTextColor={themeColors.textSecondary} />
+            <TextInput style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]} value={supplierEditor?.phone ?? ''} onChangeText={(value) => setSupplierEditor((prev) => (prev ? { ...prev, phone: value } : prev))} placeholder="Phone" placeholderTextColor={themeColors.textSecondary} />
+            <TextInput style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]} value={supplierEditor?.email ?? ''} onChangeText={(value) => setSupplierEditor((prev) => (prev ? { ...prev, email: value } : prev))} placeholder="Email" placeholderTextColor={themeColors.textSecondary} keyboardType="email-address" />
+            <TextInput style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]} value={supplierEditor?.leadTimeDays ?? ''} onChangeText={(value) => setSupplierEditor((prev) => (prev ? { ...prev, leadTimeDays: value } : prev))} placeholder="Lead time days" placeholderTextColor={themeColors.textSecondary} keyboardType="number-pad" />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setSupplierEditor(null)}>
+                <Text style={[styles.cancelText, { color: themeColors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <AppButton title="Save supplier" onPress={saveSupplier} style={styles.saveButton} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -115,6 +194,7 @@ export default function SuppliersScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  addButton: { marginBottom: spacing.md, minHeight: 44 },
   card: { marginBottom: spacing.md },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.sm },
   titleBlock: { flex: 1 },
@@ -131,4 +211,13 @@ const styles = StyleSheet.create({
   primary: { fontSize: 11, fontWeight: '900', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   primaryButton: { minHeight: 32, paddingHorizontal: 8, paddingVertical: 2 },
   primaryButtonText: { fontSize: 11 },
+  editSupplierButton: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginBottom: spacing.sm },
+  editSupplierText: { fontSize: 12, fontWeight: '800' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: spacing.lg },
+  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: spacing.md },
+  input: { borderWidth: 1, borderRadius: 8, minHeight: 46, paddingHorizontal: spacing.md, marginBottom: spacing.sm },
+  modalButtons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
+  cancelText: { fontSize: 16, fontWeight: '700', padding: spacing.sm },
+  saveButton: { minWidth: 140 },
 });

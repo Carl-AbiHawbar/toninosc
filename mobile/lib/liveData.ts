@@ -20,6 +20,7 @@ type ProfileRow = {
   full_name: string;
   role: User['role'];
   branch_id: string | null;
+  active: boolean;
 };
 
 type BranchRow = {
@@ -116,6 +117,7 @@ type AllocationRow = {
 
 export type LiveData = {
   currentUser: User | null;
+  users: User[];
   branches: Branch[];
   suppliers: Supplier[];
   warehouses: Warehouse[];
@@ -160,6 +162,8 @@ function mapProfile(row: ProfileRow | null, warehouses: Warehouse[]): User | nul
     role: row.role,
     branchId: row.branch_id ?? undefined,
     warehouseId: row.role === 'warehouse' ? warehouses[0]?.id : undefined,
+    username: row.username,
+    active: row.active,
   };
 }
 
@@ -306,6 +310,7 @@ export async function fetchLiveData(): Promise<LiveData> {
   if (!userId) {
     return {
       currentUser: null,
+      users: [],
       branches: [],
       suppliers: [],
       warehouses: [],
@@ -316,7 +321,7 @@ export async function fetchLiveData(): Promise<LiveData> {
     };
   }
 
-  const [branches, suppliers, supplierItems, warehouses, stockItems, stockBatches, orders, profile] = await Promise.all([
+  const [branches, suppliers, supplierItems, warehouses, stockItems, stockBatches, orders, profile, profiles] = await Promise.all([
     requireData(supabase.from('branches').select('*').eq('active', true).order('name'), 'Branches load'),
     requireData(supabase.from('suppliers').select('*').eq('active', true).order('name'), 'Suppliers load'),
     requireData(
@@ -340,6 +345,7 @@ export async function fetchLiveData(): Promise<LiveData> {
     userId
       ? requireData(supabase.from('profiles').select('*').eq('id', userId).maybeSingle(), 'Profile load')
       : Promise.resolve(null),
+    requireData(supabase.from('profiles').select('*').order('role').order('username'), 'Users load'),
   ]);
 
   const mappedWarehouses = (warehouses as WarehouseRow[]).map(mapWarehouse);
@@ -365,6 +371,7 @@ export async function fetchLiveData(): Promise<LiveData> {
 
   return {
     currentUser: mapProfile(profile as ProfileRow | null, mappedWarehouses),
+    users: (profiles as ProfileRow[]).map((row) => mapProfile(row, mappedWarehouses)).filter(Boolean) as User[],
     branches: (branches as BranchRow[]).map(mapBranch),
     suppliers: (suppliers as SupplierRow[]).map((supplier) =>
       mapSupplier(supplier, supplierItemIdsBySupplier.get(supplier.id) ?? [])

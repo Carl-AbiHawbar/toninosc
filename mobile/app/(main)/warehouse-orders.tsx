@@ -1,4 +1,5 @@
-import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import { useState } from 'react';
+import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
@@ -25,7 +26,14 @@ const statusGroupLabelsAr: Record<string, string> = {
 };
 
 export default function WarehouseOrdersScreen() {
-  const { orders, branches, stockItems, inventory, updateOrderStatus, language, themeColors, t } = useApp();
+  const { orders, branches, stockItems, inventory, updateOrderStatus, updateOrderLineQuantity, language, themeColors, t } = useApp();
+  const [lineEditor, setLineEditor] = useState<{
+    orderId: string;
+    lineId: string;
+    itemName: string;
+    quantity: string;
+    note: string;
+  } | null>(null);
 
   const handleAction = async (orderId: string, status: OrderStatus) => {
     const result = await updateOrderStatus(orderId, status);
@@ -37,8 +45,24 @@ export default function WarehouseOrdersScreen() {
     }
   };
 
-  const handleEditQuantities = () => {
-    Alert.alert(t('demoAction'), t('demoWarehouseEdit'));
+  const saveLineQuantity = async () => {
+    if (!lineEditor) return;
+    const quantity = Number(lineEditor.quantity.replace(',', '.'));
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      Alert.alert(language === 'ar' ? 'Invalid quantity' : 'Invalid quantity', language === 'ar' ? 'Enter a quantity greater than zero.' : 'Enter a quantity greater than zero.');
+      return;
+    }
+    if (!lineEditor.note.trim()) {
+      Alert.alert(language === 'ar' ? 'Note required' : 'Note required', language === 'ar' ? 'Add a note so the branch knows why it changed.' : 'Add a note so the branch knows why it changed.');
+      return;
+    }
+
+    const result = await updateOrderLineQuantity(lineEditor.lineId, quantity, lineEditor.note.trim());
+    if (!result.ok) {
+      Alert.alert(language === 'ar' ? 'Could not edit quantity' : 'Could not edit quantity', result.error ?? 'Try again.');
+      return;
+    }
+    setLineEditor(null);
   };
 
   const activeWarehouseOrders = orders.filter((o) =>
@@ -91,11 +115,32 @@ export default function WarehouseOrdersScreen() {
                                 Batch: {line.allocations?.map((allocation) => `${allocation.batchNumber} x${allocation.quantity}`).join(', ')}
                               </Text>
                             )}
+                            {line.note && (
+                              <Text style={[styles.batchText, { color: themeColors.warning }]}>
+                                Note: {line.note}
+                              </Text>
+                            )}
                           </View>
                           <Text style={[styles.pickQty, { color: themeColors.text }]}>x{line.quantity}</Text>
                           <Text style={[styles.pickStock, { color: isLow ? themeColors.error : themeColors.success }]}>
                             {t('leftCount', { count: inv?.currentStock ?? 0 })}
                           </Text>
+                          {order.status === 'submitted' && (
+                            <TouchableOpacity
+                              style={[styles.lineEditButton, { borderColor: themeColors.border }]}
+                              onPress={() =>
+                                setLineEditor({
+                                  orderId: order.id,
+                                  lineId: line.id,
+                                  itemName: stock?.name ?? 'Item',
+                                  quantity: String(line.quantity),
+                                  note: line.note ?? '',
+                                })
+                              }
+                            >
+                              <Text style={[styles.lineEditText, { color: themeColors.primary }]}>Edit</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       );
                     })}
@@ -108,7 +153,24 @@ export default function WarehouseOrdersScreen() {
                       {order.status === 'submitted' && (
                         <>
                           <AppButton title={t('approve')} onPress={() => handleAction(order.id, 'approved')} variant="success" style={styles.actionBtn} textStyle={styles.actionText} />
-                          <AppButton title={t('editQty')} onPress={handleEditQuantities} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
+                          <AppButton
+                            title={t('editQty')}
+                            onPress={() => {
+                              const firstLine = order.lines[0];
+                              const stock = stockItems.find((item) => item.id === firstLine?.stockItemId);
+                              if (!firstLine) return;
+                              setLineEditor({
+                                orderId: order.id,
+                                lineId: firstLine.id,
+                                itemName: stock?.name ?? 'Item',
+                                quantity: String(firstLine.quantity),
+                                note: firstLine.note ?? '',
+                              });
+                            }}
+                            variant="outline"
+                            style={styles.actionBtn}
+                            textStyle={styles.actionText}
+                          />
                         </>
                       )}
                       {order.status === 'approved' && (
@@ -139,6 +201,41 @@ export default function WarehouseOrdersScreen() {
           <Text style={[styles.empty, { color: themeColors.textSecondary }]}>{t('noPendingWarehouseOrders')}</Text>
         )}
       </ScrollView>
+
+      <Modal visible={!!lineEditor} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: themeColors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+              {language === 'ar' ? 'Edit quantity' : 'Edit quantity'}
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
+              {lineEditor?.itemName}
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+              value={lineEditor?.quantity ?? ''}
+              onChangeText={(value) => setLineEditor((prev) => (prev ? { ...prev, quantity: value } : prev))}
+              keyboardType="decimal-pad"
+              placeholder="Quantity"
+              placeholderTextColor={themeColors.textSecondary}
+            />
+            <TextInput
+              style={[styles.input, styles.noteInput, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+              value={lineEditor?.note ?? ''}
+              onChangeText={(value) => setLineEditor((prev) => (prev ? { ...prev, note: value } : prev))}
+              placeholder={language === 'ar' ? 'Reason shown to branch manager' : 'Reason shown to branch manager'}
+              placeholderTextColor={themeColors.textSecondary}
+              multiline
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setLineEditor(null)}>
+                <Text style={[styles.cancelText, { color: themeColors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <AppButton title="Save" onPress={saveLineQuantity} style={styles.saveButton} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -161,9 +258,20 @@ const styles = StyleSheet.create({
   batchText: { fontSize: 11, marginTop: 2 },
   pickQty: { fontSize: 14, fontWeight: '700', minWidth: 36 },
   pickStock: { fontSize: 12, fontWeight: '600', minWidth: 54, textAlign: 'right' },
+  lineEditButton: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  lineEditText: { fontSize: 11, fontWeight: '800' },
   orderTotal: { fontSize: 16, fontWeight: '700', marginTop: spacing.sm },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
   actionBtn: { flex: 1, minWidth: '45%', minHeight: 44 },
   actionText: { fontSize: 14 },
   empty: { fontSize: 16, textAlign: 'center', marginTop: spacing.xl },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+  modalContent: { borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: spacing.lg },
+  modalTitle: { fontSize: 20, fontWeight: '800' },
+  modalSubtitle: { fontSize: 14, marginTop: 2, marginBottom: spacing.md },
+  input: { borderWidth: 1, borderRadius: 8, minHeight: 46, paddingHorizontal: spacing.md, marginBottom: spacing.sm },
+  noteInput: { minHeight: 84, paddingTop: spacing.sm, textAlignVertical: 'top' },
+  modalButtons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
+  cancelText: { fontSize: 16, fontWeight: '700', padding: spacing.sm },
+  saveButton: { minWidth: 120 },
 });

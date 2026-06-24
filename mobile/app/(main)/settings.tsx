@@ -1,6 +1,5 @@
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useApp } from '@/context/AppContext';
-import { mockUsers } from '@/data/mockUsers';
 import { roleLabelsByLanguage } from '@/i18n/translations';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
@@ -10,7 +9,7 @@ import { spacing } from '@/theme/spacing';
 import { formatDate } from '@/utils/helpers';
 
 export default function SettingsScreen() {
-  const { currentUser, auditEvents, language, toggleLanguage, themeMode, themeColors, toggleTheme, t } = useApp();
+  const { currentUser, users, auditEvents, language, toggleLanguage, themeMode, themeColors, toggleTheme, t } = useApp();
   const isArabic = language === 'ar';
   const canViewAllUsers = currentUser?.role === 'admin';
 
@@ -50,21 +49,34 @@ export default function SettingsScreen() {
         {canViewAllUsers ? (
           <>
             <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>{t('allUsers')}</Text>
-            {mockUsers.map((user) => (
+            {users.map((user) => (
               <AppCard key={user.id} style={styles.userCard}>
-                <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>{user.name}</Text>
+                <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                  {user.name} {user.active === false ? '(inactive)' : ''}
+                </Text>
                 <Text style={[styles.userRole, { color: themeColors.primary }, isArabic && styles.rtlText]}>
                   {roleLabelsByLanguage[language][user.role]}
                 </Text>
-                <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{user.email}</Text>
+                <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+                  {user.username ?? user.email} - {user.email}
+                </Text>
               </AppCard>
             ))}
-            <Text style={[styles.comingSoon, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('usersComingSoon')}</Text>
+            <AppCard style={styles.userCard}>
+              <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                {isArabic ? 'User security controls' : 'User security controls'}
+              </Text>
+              <Text style={[styles.userEmail, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+                {isArabic
+                  ? 'Changing passwords, creating login users, and deleting auth users must run through a backend or setup script with the Supabase service role key. The mobile app must not store that key.'
+                  : 'Changing passwords, creating login users, and deleting auth users must run through a backend or setup script with the Supabase service role key. The mobile app must not store that key.'}
+              </Text>
+            </AppCard>
             <Text style={[styles.sectionTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>
               {isArabic ? 'سجل التدقيق' : 'Audit Log'}
             </Text>
             {auditEvents.slice(0, 8).map((event) => {
-              const actor = mockUsers.find((user) => user.id === event.actorUserId);
+              const actor = users.find((user) => user.id === event.actorUserId);
               return (
                 <AppCard key={event.id} style={styles.userCard}>
                   <Text style={[styles.userName, { color: themeColors.text }, isArabic && styles.rtlText]}>{event.action}</Text>

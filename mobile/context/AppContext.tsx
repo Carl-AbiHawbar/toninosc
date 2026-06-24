@@ -48,6 +48,7 @@ interface AppContextType {
   refreshData: () => Promise<void>;
   branches: Branch[];
   suppliers: Supplier[];
+  users: User[];
   warehouses: Warehouse[];
   orders: BranchOrder[];
   deliveries: Delivery[];
@@ -80,10 +81,13 @@ interface AppContextType {
   submitOrder: () => Promise<BranchOrder | null>;
   saveDraft: () => Promise<BranchOrder | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<{ ok: boolean; error?: string }>;
+  updateOrderLineQuantity: (orderLineId: string, quantity: number, note: string) => Promise<{ ok: boolean; error?: string }>;
   updateDeliveryStopStatus: (deliveryId: string, stopId: string, status: DeliveryStop['status']) => void;
   markInvoicePaid: (invoiceId: string) => void;
   addInvoicePayment: (invoiceId: string, amount: number, method?: string) => void;
   updateStockItemPrice: (stockItemId: string, price: number) => Promise<void>;
+  upsertStockItem: (item: Partial<StockItem> & { id?: string; name: string; category: StockItem['category']; unit: string }) => Promise<{ ok: boolean; error?: string }>;
+  adjustStockBatch: (stockBatchId: string, quantityDelta: number, note: string) => Promise<{ ok: boolean; error?: string }>;
   receiveStock: (
     items: {
       stockItemId: string;
@@ -96,6 +100,7 @@ interface AppContextType {
     note?: string
   ) => Promise<void>;
   setPrimarySupplier: (stockItemId: string, supplierId: string) => Promise<{ ok: boolean; error?: string }>;
+  upsertSupplier: (supplier: Partial<Supplier> & { id?: string; name: string }) => Promise<{ ok: boolean; error?: string }>;
   markNotificationRead: (notificationId: string) => void;
   getVisibleNotifications: () => AppNotification[];
 }
@@ -187,6 +192,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [orders, setOrders] = useState<BranchOrder[]>(mockOrders);
@@ -210,6 +216,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDataError(null);
       const liveData = await fetchLiveData();
       setCurrentUser(liveData.currentUser);
+      setUsers(liveData.users);
       setBranches(liveData.branches);
       setSuppliers(liveData.suppliers);
       setWarehouses(liveData.warehouses);
@@ -476,6 +483,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   }, [addAuditEvent, addNotification, orders, refreshData]);
 
+  const updateOrderLineQuantity = useCallback(
+    async (orderLineId: string, quantity: number, note: string) => {
+      const { error } = await supabase.rpc('update_order_line_quantity', {
+        p_order_line_id: orderLineId,
+        p_quantity: quantity,
+        p_note: note,
+      });
+
+      if (error) {
+        setDataError(error.message);
+        return { ok: false, error: error.message };
+      }
+
+      addAuditEvent({
+        entityType: 'order',
+        entityId: orderLineId,
+        action: 'Order quantity edited',
+        note,
+      });
+      await refreshData();
+      return { ok: true };
+    },
+    [addAuditEvent, refreshData]
+  );
+
   const updateDeliveryStopStatus = useCallback(
     (deliveryId: string, stopId: string, status: DeliveryStop['status']) => {
       // TODO: Replace with API call
@@ -575,6 +607,61 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await refreshData();
     },
     [addAuditEvent, refreshData, stockItems]
+  );
+
+  const upsertStockItem = useCallback(
+    async (item: Partial<StockItem> & { id?: string; name: string; category: StockItem['category']; unit: string }) => {
+      const { error } = await supabase.rpc('upsert_stock_item', {
+        p_stock_item_id: item.id ?? null,
+        p_name: item.name,
+        p_category: item.category,
+        p_unit: item.unit,
+        p_price: item.price ?? 0,
+        p_requires_expiry: item.requiresExpiry ?? true,
+        p_average_order_qty: item.averageOrderQty ?? 1,
+        p_active: true,
+      });
+
+      if (error) {
+        setDataError(error.message);
+        return { ok: false, error: error.message };
+      }
+
+      addAuditEvent({
+        entityType: 'inventory',
+        entityId: item.id ?? 'new-stock-item',
+        action: item.id ? 'Stock item updated' : 'Stock item added',
+        note: item.name,
+      });
+      await refreshData();
+      return { ok: true };
+    },
+    [addAuditEvent, refreshData]
+  );
+
+  const adjustStockBatch = useCallback(
+    async (stockBatchId: string, quantityDelta: number, note: string) => {
+      const { error } = await supabase.rpc('adjust_stock_batch', {
+        p_stock_batch_id: stockBatchId,
+        p_quantity_delta: quantityDelta,
+        p_note: note,
+      });
+
+      if (error) {
+        setDataError(error.message);
+        return { ok: false, error: error.message };
+      }
+
+      addAuditEvent({
+        entityType: 'inventory',
+        entityId: stockBatchId,
+        action: 'Stock batch adjusted',
+        note: `${quantityDelta > 0 ? '+' : ''}${quantityDelta} - ${note}`,
+      });
+      await refreshData();
+      return { ok: true };
+    },
+    [addAuditEvent, refreshData]
   );
 
   const receiveStock = useCallback(
@@ -695,6 +782,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [refreshData]
   );
 
+  const upsertSupplier = useCallback(
+    async (supplier: Partial<Supplier> & { id?: string; name: string }) => {
+      const { error } = await supabase.rpc('upsert_supplier', {
+        p_supplier_id: supplier.id ?? null,
+        p_name: supplier.name,
+        p_contact_name: supplier.contactName ?? '',
+        p_phone: supplier.phone ?? '',
+        p_email: supplier.email ?? '',
+        p_lead_time_days: supplier.leadTimeDays ?? 0,
+        p_active: true,
+      });
+
+      if (error) {
+        setDataError(error.message);
+        return { ok: false, error: error.message };
+      }
+
+      addAuditEvent({
+        entityType: 'inventory',
+        entityId: supplier.id ?? 'new-supplier',
+        action: supplier.id ? 'Supplier updated' : 'Supplier added',
+        note: supplier.name,
+      });
+      await refreshData();
+      return { ok: true };
+    },
+    [addAuditEvent, refreshData]
+  );
+
   const markNotificationRead = useCallback((notificationId: string) => {
     setNotifications((prev) =>
       prev.map((notification) =>
@@ -724,6 +840,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         refreshData,
         branches,
         suppliers,
+        users,
         warehouses,
         orders,
         deliveries,
@@ -756,12 +873,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         submitOrder,
         saveDraft,
         updateOrderStatus,
+        updateOrderLineQuantity,
         updateDeliveryStopStatus,
         markInvoicePaid,
         addInvoicePayment,
         updateStockItemPrice,
+        upsertStockItem,
+        adjustStockBatch,
         receiveStock,
         setPrimarySupplier,
+        upsertSupplier,
         markNotificationRead,
         getVisibleNotifications,
       }}

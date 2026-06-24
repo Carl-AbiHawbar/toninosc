@@ -10,6 +10,7 @@ import { useApp } from '@/context/AppContext';
 import { borderRadius, spacing } from '@/theme/spacing';
 import { formatCurrency, getInventoryStatusColor, getInventoryStatusLabel } from '@/utils/helpers';
 import { inventoryFilterLabelsByLanguage, inventoryStatusLabelsByLanguage } from '@/i18n/translations';
+import { StockCategory, StockItem } from '@/types';
 
 const inventoryFilters = ['All', 'Low Stock', 'Critical', 'Expiring Soon'] as const;
 
@@ -18,16 +19,83 @@ export default function InventoryScreen() {
   const [filter, setFilter] = useState<string>('All');
   const [category, setCategory] = useState('All');
   const [priceEditor, setPriceEditor] = useState<{ stockItemId: string; value: string } | null>(null);
-  const { currentUser, branches, stockItems, inventory, stockBatches, orders, updateStockItemPrice, language, themeColors, t } = useApp();
+  const [itemEditor, setItemEditor] = useState<{
+    id?: string;
+    name: string;
+    category: StockCategory;
+    unit: string;
+    price: string;
+    averageOrderQty: string;
+    requiresExpiry: boolean;
+  } | null>(null);
+  const [adjustEditor, setAdjustEditor] = useState<{ batchId: string; itemName: string; batchNumber: string; delta: string; note: string } | null>(null);
+  const { currentUser, branches, stockItems, inventory, stockBatches, orders, updateStockItemPrice, upsertStockItem, adjustStockBatch, language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
   const canReceiveStock = currentUser?.role === 'admin' || currentUser?.role === 'warehouse';
   const canEditPrices = currentUser?.role === 'admin';
+  const canManageItems = currentUser?.role === 'admin';
   const editingStock = priceEditor
     ? stockItems.find((stock) => stock.id === priceEditor.stockItemId)
     : undefined;
 
   const showDemoMessage = (action: string) => {
     Alert.alert(t('demoAction'), t('demoInventory', { action }));
+  };
+
+  const openItemEditor = (stock?: StockItem) => {
+    setItemEditor({
+      id: stock?.id,
+      name: stock?.name ?? '',
+      category: stock?.category ?? 'Add-ons',
+      unit: stock?.unit ?? 'pack',
+      price: String(stock?.price ?? 0),
+      averageOrderQty: String(stock?.averageOrderQty ?? 1),
+      requiresExpiry: stock?.requiresExpiry ?? true,
+    });
+  };
+
+  const saveItem = async () => {
+    if (!itemEditor) return;
+    const price = Number(itemEditor.price.replace(',', '.'));
+    const averageOrderQty = Number(itemEditor.averageOrderQty.replace(',', '.'));
+    if (!itemEditor.name.trim() || !itemEditor.unit.trim() || !Number.isFinite(price) || !Number.isFinite(averageOrderQty)) {
+      Alert.alert('Invalid item', 'Name, unit, price, and average order quantity are required.');
+      return;
+    }
+
+    const result = await upsertStockItem({
+      id: itemEditor.id,
+      name: itemEditor.name.trim(),
+      category: itemEditor.category,
+      unit: itemEditor.unit.trim(),
+      price,
+      averageOrderQty,
+      requiresExpiry: itemEditor.requiresExpiry,
+    });
+
+    if (!result.ok) {
+      Alert.alert('Could not save item', result.error ?? 'Try again.');
+      return;
+    }
+
+    setItemEditor(null);
+  };
+
+  const saveAdjustment = async () => {
+    if (!adjustEditor) return;
+    const delta = Number(adjustEditor.delta.replace(',', '.'));
+    if (!Number.isFinite(delta) || delta === 0 || !adjustEditor.note.trim()) {
+      Alert.alert('Invalid adjustment', 'Enter a non-zero quantity and a note.');
+      return;
+    }
+
+    const result = await adjustStockBatch(adjustEditor.batchId, delta, adjustEditor.note.trim());
+    if (!result.ok) {
+      Alert.alert('Could not adjust stock', result.error ?? 'Try again.');
+      return;
+    }
+
+    setAdjustEditor(null);
   };
 
   const items = useMemo(() => {
@@ -97,6 +165,15 @@ export default function InventoryScreen() {
         )}
 
         <View style={styles.actionRow}>
+          {canManageItems && (
+            <AppButton
+              title={isArabic ? 'Add Item' : 'Add Item'}
+              onPress={() => openItemEditor()}
+              variant="outline"
+              style={styles.topBtn}
+              textStyle={styles.topBtnText}
+            />
+          )}
           {canReceiveStock && (
             <AppButton
               title={isArabic ? 'استلام مخزون' : 'Receive Stock'}
@@ -108,7 +185,7 @@ export default function InventoryScreen() {
           )}
           <AppButton
             title={isArabic ? 'تعديل مخزون' : 'Adjust Stock'}
-            onPress={() => showDemoMessage(isArabic ? 'تعديل المخزون' : 'Adjust Stock')}
+            onPress={() => showDemoMessage(isArabic ? 'Select a batch from an item to adjust it.' : 'Select a batch from an item to adjust it.')}
             variant="outline"
             style={styles.topBtn}
             textStyle={styles.topBtnText}
@@ -166,6 +243,16 @@ export default function InventoryScreen() {
                         </Text>
                       </TouchableOpacity>
                     )}
+                    {canManageItems && (
+                      <TouchableOpacity
+                        style={[styles.editPriceButton, { borderColor: themeColors.border }]}
+                        onPress={() => openItemEditor(stock)}
+                      >
+                        <Text style={[styles.editPriceText, { color: themeColors.primary }]}>
+                          {isArabic ? 'Edit item' : 'Edit item'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                   <View style={styles.stockRow}>
                     <Text style={[styles.stockCurrent, { color: themeColors.text }]}>{inv.currentStock}</Text>
@@ -192,6 +279,22 @@ export default function InventoryScreen() {
                         <Text style={[styles.batchLine, { color: themeColors.text }]}>
                           {batch.batchNumber}: {batch.currentQuantity} left{batch.expiryDate ? `, exp ${batch.expiryDate}` : ''}
                         </Text>
+                        {canReceiveStock && (
+                          <TouchableOpacity
+                            style={[styles.adjustBatchButton, { borderColor: themeColors.border }]}
+                            onPress={() =>
+                              setAdjustEditor({
+                                batchId: batch.id,
+                                itemName: stock.name,
+                                batchNumber: batch.batchNumber,
+                                delta: '',
+                                note: '',
+                              })
+                            }
+                          >
+                            <Text style={[styles.editPriceText, { color: themeColors.primary }]}>Adjust</Text>
+                          </TouchableOpacity>
+                        )}
                         {branchNames ? (
                           <Text style={[styles.batchTrace, { color: themeColors.textSecondary }]}>
                             Sent to: {branchNames}
@@ -261,6 +364,100 @@ export default function InventoryScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={!!itemEditor} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: themeColors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>{itemEditor?.id ? 'Edit item' : 'Add item'}</Text>
+            <TextInput
+              style={[styles.priceInput, styles.formInput, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+              value={itemEditor?.name ?? ''}
+              onChangeText={(value) => setItemEditor((prev) => (prev ? { ...prev, name: value } : prev))}
+              placeholder="Item name"
+              placeholderTextColor={themeColors.textSecondary}
+            />
+            <TextInput
+              style={[styles.priceInput, styles.formInput, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+              value={itemEditor?.category ?? ''}
+              onChangeText={(value) => setItemEditor((prev) => (prev ? { ...prev, category: value as StockCategory } : prev))}
+              placeholder="Category"
+              placeholderTextColor={themeColors.textSecondary}
+            />
+            <TextInput
+              style={[styles.priceInput, styles.formInput, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+              value={itemEditor?.unit ?? ''}
+              onChangeText={(value) => setItemEditor((prev) => (prev ? { ...prev, unit: value } : prev))}
+              placeholder="Unit, e.g. kg / pack / box"
+              placeholderTextColor={themeColors.textSecondary}
+            />
+            <View style={styles.inlineInputs}>
+              <TextInput
+                style={[styles.priceInput, styles.inlineInput, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+                value={itemEditor?.price ?? ''}
+                onChangeText={(value) => setItemEditor((prev) => (prev ? { ...prev, price: value } : prev))}
+                placeholder="Price"
+                placeholderTextColor={themeColors.textSecondary}
+                keyboardType="decimal-pad"
+              />
+              <TextInput
+                style={[styles.priceInput, styles.inlineInput, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+                value={itemEditor?.averageOrderQty ?? ''}
+                onChangeText={(value) => setItemEditor((prev) => (prev ? { ...prev, averageOrderQty: value } : prev))}
+                placeholder="Avg order"
+                placeholderTextColor={themeColors.textSecondary}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.expiryToggle, { borderColor: themeColors.border }]}
+              onPress={() => setItemEditor((prev) => (prev ? { ...prev, requiresExpiry: !prev.requiresExpiry } : prev))}
+            >
+              <Text style={[styles.editPriceText, { color: themeColors.text }]}>
+                Requires expiry: {itemEditor?.requiresExpiry ? 'Yes' : 'No'}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setItemEditor(null)}>
+                <Text style={[styles.cancelText, { color: themeColors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <AppButton title="Save item" onPress={saveItem} style={styles.savePriceButton} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!adjustEditor} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: themeColors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>Adjust batch</Text>
+            <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
+              {adjustEditor?.itemName} - {adjustEditor?.batchNumber}
+            </Text>
+            <TextInput
+              style={[styles.priceInput, styles.formInput, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+              value={adjustEditor?.delta ?? ''}
+              onChangeText={(value) => setAdjustEditor((prev) => (prev ? { ...prev, delta: value } : prev))}
+              placeholder="+5 or -2"
+              placeholderTextColor={themeColors.textSecondary}
+              keyboardType="decimal-pad"
+            />
+            <TextInput
+              style={[styles.priceInput, styles.noteInput, { backgroundColor: themeColors.background, borderColor: themeColors.borderStrong, color: themeColors.text }]}
+              value={adjustEditor?.note ?? ''}
+              onChangeText={(value) => setAdjustEditor((prev) => (prev ? { ...prev, note: value } : prev))}
+              placeholder="Reason for adjustment"
+              placeholderTextColor={themeColors.textSecondary}
+              multiline
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setAdjustEditor(null)}>
+                <Text style={[styles.cancelText, { color: themeColors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <AppButton title="Save adjustment" onPress={saveAdjustment} style={styles.savePriceButton} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -308,6 +505,7 @@ const styles = StyleSheet.create({
   batchRow: { borderTopWidth: 1, marginTop: spacing.xs, paddingTop: spacing.xs },
   batchLine: { fontSize: 12, fontWeight: '700' },
   batchTrace: { fontSize: 11, marginTop: 2 },
+  adjustBatchButton: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: borderRadius.full, marginTop: 4, paddingHorizontal: 8, paddingVertical: 3 },
   statusBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -335,6 +533,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  formInput: { marginTop: spacing.sm, fontSize: 15, fontWeight: '600' },
+  inlineInputs: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  inlineInput: { flex: 1, fontSize: 15, fontWeight: '600' },
+  expiryToggle: { borderWidth: 1, borderRadius: borderRadius.md, padding: spacing.sm, marginTop: spacing.sm },
+  noteInput: { minHeight: 88, paddingTop: spacing.sm, textAlignVertical: 'top', marginTop: spacing.sm },
   modalButtons: {
     flexDirection: 'row',
     alignItems: 'center',

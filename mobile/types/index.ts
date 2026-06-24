@@ -56,6 +56,8 @@ export interface User {
   branchId?: string;
   warehouseId?: string;
   phone?: string;
+  username?: string;
+  active?: boolean;
 }
 
 export interface Country {
