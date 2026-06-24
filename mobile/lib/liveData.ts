@@ -303,6 +303,19 @@ export async function fetchLiveData(): Promise<LiveData> {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id;
 
+  if (!userId) {
+    return {
+      currentUser: null,
+      branches: [],
+      suppliers: [],
+      warehouses: [],
+      stockItems: [],
+      stockBatches: [],
+      inventory: [],
+      orders: [],
+    };
+  }
+
   const [branches, suppliers, supplierItems, warehouses, stockItems, stockBatches, orders, profile] = await Promise.all([
     requireData(supabase.from('branches').select('*').eq('active', true).order('name'), 'Branches load'),
     requireData(supabase.from('suppliers').select('*').eq('active', true).order('name'), 'Suppliers load'),

@@ -46,6 +46,19 @@ export default function LoginScreen() {
     );
   };
 
+  if (isLoading && !currentUser) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={themeColors.primary} />
+          <Text style={[styles.loadingText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
+            {isArabic ? 'Checking saved login...' : 'Checking saved login...'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -214,6 +227,18 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 12,
     marginTop: spacing.md,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
   rtlText: {
     textAlign: 'right',
