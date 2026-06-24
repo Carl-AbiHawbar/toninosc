@@ -1,0 +1,9 @@
+delete from payments;
+delete from invoices;
+delete from delivery_stops;
+delete from deliveries;
+delete from order_line_allocations;
+delete from order_lines;
+delete from orders;
+delete from stock_movements;
+delete from stock_batches;
