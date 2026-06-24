@@ -47,15 +47,19 @@ export function CategoryFilter({ categories, selected, onSelect }: CategoryFilte
 const styles = StyleSheet.create({
   scroll: {
     marginBottom: spacing.sm,
-    maxHeight: 44,
+    minHeight: 48,
   },
   content: {
+    alignItems: 'center',
     gap: spacing.sm,
+    paddingVertical: 2,
     paddingRight: spacing.md,
   },
   chip: {
+    minHeight: 40,
+    justifyContent: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 6,
     borderRadius: borderRadius.full,
     borderWidth: 1,
   },
@@ -65,6 +69,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 14,
+    lineHeight: 20,
     fontWeight: '600',
     color: colors.text,
   },
