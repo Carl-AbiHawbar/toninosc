@@ -41,11 +41,11 @@ import { fetchLiveData, signInWithUsername } from '@/lib/liveData';
 
 interface AppContextType {
   currentUser: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   isLoading: boolean;
   dataError: string | null;
-  refreshData: () => Promise<void>;
+  refreshData: () => Promise<{ ok: boolean; error?: string }>;
   branches: Branch[];
   suppliers: Supplier[];
   users: User[];
@@ -187,6 +187,16 @@ function allocateFefo(
   };
 }
 
+function getReadableError(error: unknown, fallback = 'Could not load live data') {
+  const message = error instanceof Error ? error.message : String(error || fallback);
+
+  if (message === 'fetch failed' || message === 'Load failed' || message.includes('Network request failed')) {
+    return 'Could not reach Supabase. Check the Supabase URL in mobile/.env, internet/DNS access, and whether the Supabase project is active.';
+  }
+
+  return message;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -224,8 +234,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setStockBatches(liveData.stockBatches);
       setInventory(liveData.inventory);
       setOrders(liveData.orders);
+      return { ok: true };
     } catch (error) {
-      setDataError(error instanceof Error ? error.message : 'Could not load live data');
+      const message = getReadableError(error);
+      setDataError(message);
+      return { ok: false, error: message };
     } finally {
       setIsLoading(false);
     }
@@ -243,14 +256,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (username: string, password: string) => {
     setIsLoading(true);
+    setDataError(null);
     const { error } = await signInWithUsername(username, password);
     if (error) {
+      const message = getReadableError(error, 'Login failed');
       setIsLoading(false);
-      setDataError(error.message);
-      return false;
+      setDataError(message);
+      return { ok: false, error: message };
     }
-    await refreshData();
-    return true;
+    const refreshResult = await refreshData();
+    if (!refreshResult.ok) return refreshResult;
+    return { ok: true };
   }, [refreshData]);
 
   const logout = useCallback(async () => {

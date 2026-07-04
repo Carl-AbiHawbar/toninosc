@@ -32,17 +32,17 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setSubmitting(true);
-    const ok = await login(username, password);
+    const result = await login(username, password);
     setSubmitting(false);
 
-    if (ok) {
+    if (result.ok) {
       router.replace('/(main)/home');
       return;
     }
 
     Alert.alert(
       isArabic ? 'تعذر تسجيل الدخول' : 'Login failed',
-      dataError ?? (isArabic ? 'تأكد من اسم المستخدم وكلمة المرور.' : 'Check the username and password.')
+      result.error ?? dataError ?? (isArabic ? 'تأكد من اسم المستخدم وكلمة المرور.' : 'Check the username and password.')
     );
   };
 

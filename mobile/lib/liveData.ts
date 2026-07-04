@@ -297,9 +297,23 @@ function mapOrder(row: OrderRow): BranchOrder {
   };
 }
 
+function formatRequestError(error: unknown) {
+  if (!error || typeof error !== 'object') return String(error ?? 'Unknown error');
+
+  const source = error as {
+    message?: string;
+    code?: string;
+    details?: string;
+    hint?: string;
+  };
+  return [source.message, source.code ? `code ${source.code}` : null, source.details, source.hint]
+    .filter(Boolean)
+    .join(' - ');
+}
+
 async function requireData<T>(request: PromiseLike<{ data: T | null; error: unknown }>, label: string): Promise<T> {
   const { data, error } = await request;
-  if (error) throw new Error(`${label} failed`);
+  if (error) throw new Error(`${label} failed: ${formatRequestError(error)}`);
   return data as T;
 }
 
