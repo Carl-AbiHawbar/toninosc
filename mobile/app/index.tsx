@@ -93,7 +93,7 @@ export default function LoginScreen() {
             autoCorrect={false}
             value={username}
             onChangeText={setUsername}
-            placeholder="admin, warehouse, aley..."
+            placeholder={isArabic ? 'Username' : 'Username'}
             placeholderTextColor={themeColors.textSecondary}
             style={[
               styles.input,
