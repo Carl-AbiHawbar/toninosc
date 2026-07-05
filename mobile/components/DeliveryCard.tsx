@@ -1,4 +1,4 @@
-import { Alert, View, Text, StyleSheet } from 'react-native';
+import { Alert, Linking, View, Text, StyleSheet } from 'react-native';
 import { DeliveryStop } from '@/types';
 import { AppCard } from './AppCard';
 import { StatusBadge } from './StatusBadge';
@@ -6,7 +6,6 @@ import { AppButton } from './AppButton';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency } from '@/utils/helpers';
-import { mockBranches } from '@/data/mockBranches';
 import { useApp } from '@/context/AppContext';
 
 interface DeliveryCardProps {
@@ -17,10 +16,36 @@ interface DeliveryCardProps {
 }
 
 export function DeliveryCard({ stop, onStatusChange, onPress, compact }: DeliveryCardProps) {
-  const branch = mockBranches.find((b) => b.id === stop.branchId);
-  const { themeColors, t } = useApp();
-  const showDemoMessage = (action: string) => {
-    Alert.alert(t('demoAction'), t('demoDelivery', { action }));
+  const { branches, themeColors, t } = useApp();
+  const branch = branches.find((b) => b.id === stop.branchId);
+
+  const openUrl = async (url: string, fallbackUrl?: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      if (!fallbackUrl) {
+        Alert.alert('Could not open link', 'This device cannot open the requested app.');
+        return;
+      }
+      try {
+        await Linking.openURL(fallbackUrl);
+      } catch {
+        Alert.alert('Could not open link', 'This device cannot open the requested app.');
+      }
+    }
+  };
+
+  const phoneDigits = stop.phone.replace(/[^\d+]/g, '');
+  const mapQuery = encodeURIComponent(`${stop.address} ${branch?.name ?? ''}`.trim());
+
+  const openWhatsApp = () => {
+    if (!phoneDigits) return;
+    openUrl(`whatsapp://send?phone=${phoneDigits}`, `https://wa.me/${phoneDigits.replace(/^\+/, '')}`);
+  };
+
+  const openMap = () => {
+    if (!mapQuery) return;
+    openUrl(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`);
   };
 
   return (
@@ -43,9 +68,9 @@ export function DeliveryCard({ stop, onStatusChange, onPress, compact }: Deliver
 
       {!compact && (
         <>
-          <View style={styles.placeholderRow}>
-            <AppButton title={t('whatsApp')} onPress={() => showDemoMessage(t('whatsApp'))} variant="outline" style={styles.smallBtn} textStyle={styles.smallText} />
-            <AppButton title={t('map')} onPress={() => showDemoMessage(t('map'))} variant="outline" style={styles.smallBtn} textStyle={styles.smallText} />
+          <View style={styles.actionRow}>
+            <AppButton title={t('whatsApp')} onPress={openWhatsApp} disabled={!phoneDigits} variant="outline" style={styles.smallBtn} textStyle={styles.smallText} />
+            <AppButton title={t('map')} onPress={openMap} disabled={!mapQuery} variant="outline" style={styles.smallBtn} textStyle={styles.smallText} />
           </View>
 
           {onStatusChange && (
@@ -113,7 +138,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  placeholderRow: {
+  actionRow: {
     flexDirection: 'row',
     gap: spacing.sm,
     marginBottom: spacing.sm,

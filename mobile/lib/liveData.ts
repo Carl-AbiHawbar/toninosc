@@ -3,7 +3,11 @@ import {
   BatchAllocation,
   Branch,
   BranchOrder,
+  Delivery,
+  DeliveryStop,
   InventoryBalance,
+  Invoice,
+  PaymentStatus,
   StockBatch,
   StockItem,
   StockItemSupplier,
@@ -107,12 +111,52 @@ type OrderLineRow = {
   branch_note: string | null;
   edit_note: string | null;
   order_line_allocations?: AllocationRow[];
+  stock_items?: {
+    name: string;
+    unit: string;
+  } | null;
 };
 
 type AllocationRow = {
   id: string;
   quantity: number | string;
   stock_batches?: StockBatchRow | null;
+};
+
+type DeliveryStopRow = {
+  id: string;
+  order_id: string;
+  branch_id: string;
+  stop_number: number;
+  status: DeliveryStop['status'];
+  branches?: Pick<BranchRow, 'address' | 'phone'> | null;
+  orders?: OrderRow | null;
+};
+
+type DeliveryRow = {
+  id: string;
+  route_date: string;
+  driver_user_id: string;
+  status: Delivery['status'];
+  delivery_stops?: DeliveryStopRow[];
+};
+
+type InvoiceRow = {
+  id: string;
+  invoice_number: string;
+  branch_id: string;
+  order_id: string;
+  invoice_date: string;
+  payable: boolean;
+  status: PaymentStatus | 'tracked_only';
+  subtotal: number | string;
+  discount: number | string;
+  delivery_fee: number | string;
+  tax: number | string;
+  grand_total: number | string;
+  paid_amount: number | string;
+  due_date: string | null;
+  orders?: OrderRow | null;
 };
 
 export type LiveData = {
@@ -125,6 +169,8 @@ export type LiveData = {
   stockBatches: StockBatch[];
   inventory: InventoryBalance[];
   orders: BranchOrder[];
+  deliveries: Delivery[];
+  invoices: Invoice[];
 };
 
 const numberValue = (value: number | string | null | undefined) => Number(value ?? 0);
@@ -297,6 +343,93 @@ function mapOrder(row: OrderRow): BranchOrder {
   };
 }
 
+function mapDeliveryStop(row: DeliveryStopRow): DeliveryStop {
+  const orderLines = row.orders?.order_lines ?? [];
+  const invoiceTotal = orderLines.reduce(
+    (sum, line) => sum + numberValue(line.approved_quantity ?? line.requested_quantity) * numberValue(line.unit_price),
+    0
+  );
+
+  return {
+    id: row.id,
+    stopNumber: row.stop_number,
+    branchId: row.branch_id,
+    orderId: row.order_id,
+    address: row.branches?.address ?? '',
+    phone: row.branches?.phone ?? '',
+    boxCount: Math.max(1, orderLines.length),
+    invoiceTotal,
+    status: row.status,
+    items: orderLines.map((line) => ({
+      name: line.stock_items?.name ?? 'Item',
+      quantity: numberValue(line.approved_quantity ?? line.requested_quantity),
+      unit: line.stock_items?.unit ?? '',
+      batches: (line.order_line_allocations ?? []).map((allocation): BatchAllocation => ({
+        batchId: allocation.stock_batches?.id ?? '',
+        batchNumber: allocation.stock_batches?.batch_number ?? '',
+        quantity: numberValue(allocation.quantity),
+        productionDate: allocation.stock_batches?.production_date ?? '',
+        expiryDate: allocation.stock_batches?.expiry_date ?? '',
+      })),
+    })),
+  };
+}
+
+function mapDelivery(row: DeliveryRow): Delivery {
+  return {
+    id: row.id,
+    routeDate: row.route_date,
+    driverId: row.driver_user_id,
+    status: row.status,
+    stops: (row.delivery_stops ?? []).map(mapDeliveryStop),
+  };
+}
+
+function mapPaymentStatus(status: InvoiceRow['status']): PaymentStatus {
+  return status === 'tracked_only' ? 'paid' : status;
+}
+
+function mapInvoice(row: InvoiceRow): Invoice {
+  const lines = row.orders?.order_lines ?? [];
+
+  return {
+    id: row.id,
+    invoiceNumber: row.invoice_number,
+    branchId: row.branch_id,
+    orderId: row.order_id,
+    date: row.invoice_date,
+    lines: lines.map((line) => {
+      const quantity = numberValue(line.approved_quantity ?? line.requested_quantity);
+      const unitPrice = numberValue(line.unit_price);
+
+      return {
+        id: line.id,
+        stockItemId: line.stock_item_id,
+        name: line.stock_items?.name ?? 'Item',
+        quantity,
+        unit: line.stock_items?.unit ?? '',
+        unitPrice,
+        total: quantity * unitPrice,
+        batches: (line.order_line_allocations ?? []).map((allocation): BatchAllocation => ({
+          batchId: allocation.stock_batches?.id ?? '',
+          batchNumber: allocation.stock_batches?.batch_number ?? '',
+          quantity: numberValue(allocation.quantity),
+          productionDate: allocation.stock_batches?.production_date ?? '',
+          expiryDate: allocation.stock_batches?.expiry_date ?? '',
+        })),
+      };
+    }),
+    subtotal: numberValue(row.subtotal),
+    discount: numberValue(row.discount),
+    deliveryFee: numberValue(row.delivery_fee),
+    tax: numberValue(row.tax),
+    grandTotal: numberValue(row.grand_total),
+    paymentStatus: mapPaymentStatus(row.status),
+    paidAmount: numberValue(row.paid_amount),
+    dueDate: row.due_date ?? undefined,
+  };
+}
+
 function formatRequestError(error: unknown) {
   if (!error || typeof error !== 'object') return String(error ?? 'Unknown error');
 
@@ -332,10 +465,12 @@ export async function fetchLiveData(): Promise<LiveData> {
       stockBatches: [],
       inventory: [],
       orders: [],
+      deliveries: [],
+      invoices: [],
     };
   }
 
-  const [branches, suppliers, supplierItems, warehouses, stockItems, stockBatches, orders, profile, profiles] = await Promise.all([
+  const [branches, suppliers, supplierItems, warehouses, stockItems, stockBatches, orders, deliveries, invoices, profile, profiles] = await Promise.all([
     requireData(supabase.from('branches').select('*').eq('active', true).order('name'), 'Branches load'),
     requireData(supabase.from('suppliers').select('*').eq('active', true).order('name'), 'Suppliers load'),
     requireData(
@@ -352,9 +487,23 @@ export async function fetchLiveData(): Promise<LiveData> {
     requireData(
       supabase
         .from('orders')
-        .select('*, order_lines(*, order_line_allocations(*, stock_batches(*)))')
+        .select('*, order_lines(*, stock_items(name, unit), order_line_allocations(*, stock_batches(*)))')
         .order('created_at', { ascending: false }),
       'Orders load'
+    ),
+    requireData(
+      supabase
+        .from('deliveries')
+        .select('*, delivery_stops(*, branches(address, phone), orders(*, order_lines(*, stock_items(name, unit), order_line_allocations(*, stock_batches(*)))))')
+        .order('route_date', { ascending: false }),
+      'Deliveries load'
+    ),
+    requireData(
+      supabase
+        .from('invoices')
+        .select('*, orders(*, order_lines(*, stock_items(name, unit), order_line_allocations(*, stock_batches(*))))')
+        .order('invoice_date', { ascending: false }),
+      'Invoices load'
     ),
     userId
       ? requireData(supabase.from('profiles').select('*').eq('id', userId).maybeSingle(), 'Profile load')
@@ -395,6 +544,8 @@ export async function fetchLiveData(): Promise<LiveData> {
     stockBatches: mappedBatches,
     inventory: buildInventory(mappedStockItems, mappedBatches, mappedWarehouses[0]?.id),
     orders: (orders as OrderRow[]).map(mapOrder),
+    deliveries: (deliveries as DeliveryRow[]).map(mapDelivery),
+    invoices: (invoices as InvoiceRow[]).map(mapInvoice),
   };
 }
 

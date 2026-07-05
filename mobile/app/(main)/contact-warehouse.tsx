@@ -1,16 +1,12 @@
-import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import { Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
-import { AppButton } from '@/components/AppButton';
 import { useApp } from '@/context/AppContext';
 import { spacing } from '@/theme/spacing';
 
 export default function ContactWarehouseScreen() {
   const { t, language, themeColors } = useApp();
   const isArabic = language === 'ar';
-  const showDemoMessage = () => {
-    Alert.alert(t('demoAction'), t('demoContact'));
-  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
@@ -32,12 +28,6 @@ export default function ContactWarehouseScreen() {
             {isArabic ? 'مفتوح: الاثنين-السبت 8 صباحا-6 مساء' : 'Open: Mon-Sat 8am-6pm'}
           </Text>
         </AppCard>
-
-        <View style={styles.buttons}>
-          <AppButton title={isArabic ? 'اتصال بالمستودع' : 'Call Warehouse'} icon="📞" onPress={showDemoMessage} />
-          <AppButton title={t('whatsApp')} icon="💬" onPress={showDemoMessage} variant="success" />
-          <AppButton title={isArabic ? 'إرسال بريد' : 'Send Email'} icon="✉️" onPress={showDemoMessage} variant="outline" />
-        </View>
 
         <AppCard style={styles.hoursCard}>
           <Text style={[styles.hoursTitle, { color: themeColors.text }, isArabic && styles.rtlText]}>
@@ -62,7 +52,6 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 48, marginBottom: spacing.sm },
   title: { fontSize: 22, fontWeight: '800', marginBottom: spacing.sm },
   detail: { fontSize: 15, marginBottom: 4 },
-  buttons: { gap: spacing.md, marginBottom: spacing.lg },
   hoursCard: { marginTop: spacing.sm },
   hoursTitle: { fontSize: 16, fontWeight: '700', marginBottom: spacing.sm },
   hoursRow: { fontSize: 14, marginBottom: spacing.xs, lineHeight: 20 },

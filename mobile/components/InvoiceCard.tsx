@@ -1,4 +1,4 @@
-import { Alert, View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Invoice } from '@/types';
 import { AppCard } from './AppCard';
 import { StatusBadge } from './StatusBadge';
@@ -6,7 +6,6 @@ import { AppButton } from './AppButton';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate } from '@/utils/helpers';
-import { mockBranches } from '@/data/mockBranches';
 import { useApp } from '@/context/AppContext';
 
 interface InvoiceCardProps {
@@ -18,15 +17,12 @@ interface InvoiceCardProps {
 }
 
 export function InvoiceCard({ invoice, onPress, onMarkPaid, onAddPayment, showActions }: InvoiceCardProps) {
-  const branch = mockBranches.find((b) => b.id === invoice.branchId);
-  const { language, themeColors, t } = useApp();
+  const { branches, language, themeColors, t } = useApp();
+  const branch = branches.find((b) => b.id === invoice.branchId);
   const isArabic = language === 'ar';
   const isFreeSupply = Boolean(branch?.suppliesFree);
   const paidAmount = isFreeSupply ? invoice.grandTotal : invoice.paidAmount ?? (invoice.paymentStatus === 'paid' ? invoice.grandTotal : 0);
   const balance = isFreeSupply ? 0 : Math.max(0, invoice.grandTotal - paidAmount);
-  const showDemoMessage = (action: string) => {
-    Alert.alert(t('demoAction'), t('demoFinance', { action }));
-  };
 
   return (
     <AppCard style={styles.card}>
@@ -105,14 +101,12 @@ export function InvoiceCard({ invoice, onPress, onMarkPaid, onAddPayment, showAc
 
       {showActions && (
         <View style={styles.actions}>
-          <AppButton title={t('downloadPdf')} onPress={() => showDemoMessage(t('downloadPdf'))} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
           {!isFreeSupply && invoice.paymentStatus !== 'paid' && onMarkPaid && (
             <AppButton title={t('markAsPaid')} onPress={onMarkPaid} variant="success" style={styles.actionBtn} textStyle={styles.actionText} />
           )}
-          {!isFreeSupply && (
-            <AppButton title={t('addPayment')} onPress={onAddPayment ?? (() => showDemoMessage(t('addPayment')))} variant="secondary" style={styles.actionBtn} textStyle={styles.actionText} />
+          {!isFreeSupply && onAddPayment && (
+            <AppButton title={t('addPayment')} onPress={onAddPayment} variant="secondary" style={styles.actionBtn} textStyle={styles.actionText} />
           )}
-          <AppButton title={t('creditNote')} onPress={() => showDemoMessage(t('creditNote'))} variant="outline" style={styles.actionBtn} textStyle={styles.actionText} />
         </View>
       )}
 

@@ -20,8 +20,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const { currentUser, login, language, toggleLanguage, themeMode, themeColors, toggleTheme, t, isLoading, dataError } = useApp();
   const isArabic = language === 'ar';
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('Tonino123!');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -139,9 +139,6 @@ export default function LoginScreen() {
             <Text style={[styles.errorText, { color: themeColors.error }, isArabic && styles.rtlText]}>{dataError}</Text>
           ) : null}
 
-          <Text style={[styles.helperText, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
-            {isArabic ? 'كلمة المرور المؤقتة: Tonino123!' : 'Temporary password: Tonino123!'}
-          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -222,10 +219,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 13,
     fontWeight: '700',
-    marginTop: spacing.md,
-  },
-  helperText: {
-    fontSize: 12,
     marginTop: spacing.md,
   },
   loadingContainer: {

@@ -1,6 +1,8 @@
+const crypto = require('crypto');
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const TEMP_PASSWORD = process.env.TONINO_TEMP_PASSWORD || 'Tonino123!';
+const ADMIN_PASSWORD = process.env.TONINO_ADMIN_PASSWORD || '1234';
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
@@ -58,6 +60,16 @@ const systemUsers = [
 
 const emailFor = (username) => `${username}@toninocrepes.com`;
 
+function generatePassword() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const bytes = crypto.randomBytes(16);
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
+}
+
+function passwordFor(username) {
+  return username === 'admin' ? ADMIN_PASSWORD : generatePassword();
+}
+
 async function request(path, options = {}) {
   const response = await fetch(`${SUPABASE_URL}${path}`, {
     ...options,
@@ -96,12 +108,12 @@ async function fetchBranches() {
   return new Map(branches.map((branch) => [branch.slug, branch]));
 }
 
-async function createUser(seed) {
+async function createUser(seed, password) {
   const body = await request('/auth/v1/admin/users', {
     method: 'POST',
     body: JSON.stringify({
       email: emailFor(seed.username),
-      password: TEMP_PASSWORD,
+      password,
       email_confirm: true,
       user_metadata: {
         username: seed.username,
@@ -143,9 +155,11 @@ async function main() {
 
   const seeds = [...systemUsers, ...branchUsers];
   const profiles = [];
+  const credentials = [];
 
   for (const seed of seeds) {
-    const user = await createUser(seed);
+    const password = passwordFor(seed.username);
+    const user = await createUser(seed, password);
     profiles.push({
       id: user.id,
       username: seed.username,
@@ -155,10 +169,16 @@ async function main() {
       branch_id: seed.branchId || null,
       active: true,
     });
+    credentials.push({
+      username: seed.username,
+      password,
+      role: seed.role,
+      branch: seed.branchId ? seed.fullName : undefined,
+    });
   }
 
   await upsertProfiles(profiles);
-  console.log(JSON.stringify({ deleted, created: profiles.length, tempPassword: TEMP_PASSWORD }, null, 2));
+  console.log(JSON.stringify({ deleted, created: profiles.length, credentials }, null, 2));
 }
 
 main().catch((error) => {

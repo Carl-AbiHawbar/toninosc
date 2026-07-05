@@ -1,7 +1,6 @@
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
-import { mockBranches } from '@/data/mockBranches';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { AppButton } from '@/components/AppButton';
@@ -12,12 +11,12 @@ import { formatCurrency } from '@/utils/helpers';
 export default function DriverDeliveryDetailScreen() {
   const { id, deliveryId } = useLocalSearchParams<{ id: string; deliveryId: string }>();
   const router = useRouter();
-  const { deliveries, updateDeliveryStopStatus, language, themeColors } = useApp();
+  const { branches, deliveries, updateDeliveryStopStatus, language, themeColors } = useApp();
   const isArabic = language === 'ar';
 
   const delivery = deliveries.find((d) => d.id === deliveryId);
   const stop = delivery?.stops.find((s) => s.id === id);
-  const branch = mockBranches.find((b) => b.id === stop?.branchId);
+  const branch = branches.find((b) => b.id === stop?.branchId);
 
   if (!stop || !delivery) {
     return (

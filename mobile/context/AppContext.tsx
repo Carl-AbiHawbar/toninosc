@@ -22,18 +22,8 @@ import {
   Supplier,
   Warehouse,
 } from '@/types';
-import { mockUsers } from '@/data/mockUsers';
-import { mockOrders, calculateOrderTotal, getLastOrderForBranch } from '@/data/mockOrders';
-import { mockDeliveries } from '@/data/mockDeliveries';
-import { mockInvoices } from '@/data/mockInvoices';
-import { mockAlerts } from '@/data/mockAlerts';
-import { mockInventory, mockStockMovements } from '@/data/mockInventory';
-import { mockStockBatches } from '@/data/mockStockBatches';
-import { mockAuditEvents } from '@/data/mockAuditEvents';
-import { mockNotifications } from '@/data/mockNotifications';
-import { mockOfflineSync } from '@/data/mockOfflineSync';
-import { mockStockItems } from '@/data/mockStockItems';
 import { generateOrderNumber, getDateKey, getMonthKey } from '@/utils/helpers';
+import { calculateOrderTotal } from '@/utils/orderHelpers';
 import { translate, TranslationKey } from '@/i18n/translations';
 import { AppColors, darkColors, lightColors } from '@/theme/colors';
 import { supabase } from '@/lib/supabase';
@@ -83,6 +73,7 @@ interface AppContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<{ ok: boolean; error?: string }>;
   updateOrderLineQuantity: (orderLineId: string, quantity: number, note: string) => Promise<{ ok: boolean; error?: string }>;
   updateDeliveryStopStatus: (deliveryId: string, stopId: string, status: DeliveryStop['status']) => void;
+  moveDeliveryStop: (deliveryId: string, stopId: string, direction: 'up' | 'down') => void;
   markInvoicePaid: (invoiceId: string) => void;
   addInvoicePayment: (invoiceId: string, amount: number, method?: string) => void;
   updateStockItemPrice: (stockItemId: string, price: number) => Promise<void>;
@@ -189,8 +180,13 @@ function allocateFefo(
 
 function getReadableError(error: unknown, fallback = 'Could not load live data') {
   const message = error instanceof Error ? error.message : String(error || fallback);
+  const normalized = message.toLowerCase();
 
-  if (message === 'fetch failed' || message === 'Load failed' || message.includes('Network request failed')) {
+  if (
+    normalized.includes('fetch failed') ||
+    normalized.includes('load failed') ||
+    normalized.includes('network request failed')
+  ) {
     return 'Could not reach Supabase. Check the Supabase URL in mobile/.env, internet/DNS access, and whether the Supabase project is active.';
   }
 
@@ -205,17 +201,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [orders, setOrders] = useState<BranchOrder[]>(mockOrders);
-  const [deliveries, setDeliveries] = useState<Delivery[]>(mockDeliveries);
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
-  const [alerts] = useState<Alert[]>(mockAlerts);
-  const [stockItems, setStockItems] = useState<StockItem[]>(mockStockItems);
-  const [inventory, setInventory] = useState<InventoryBalance[]>(mockInventory);
-  const [stockBatches, setStockBatches] = useState<StockBatch[]>(mockStockBatches);
-  const [stockMovements, setStockMovements] = useState<StockMovement[]>(mockStockMovements);
-  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>(mockAuditEvents);
-  const [notifications, setNotifications] = useState<AppNotification[]>(mockNotifications);
-  const [offlineSync, setOfflineSync] = useState<OfflineSyncItem[]>(mockOfflineSync);
+  const [orders, setOrders] = useState<BranchOrder[]>([]);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [alerts] = useState<Alert[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [inventory, setInventory] = useState<InventoryBalance[]>([]);
+  const [stockBatches, setStockBatches] = useState<StockBatch[]>([]);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [offlineSync, setOfflineSync] = useState<OfflineSyncItem[]>([]);
   const [language, setLanguage] = useState<Language>('en');
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -234,6 +230,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setStockBatches(liveData.stockBatches);
       setInventory(liveData.inventory);
       setOrders(liveData.orders);
+      setDeliveries(liveData.deliveries);
+      setInvoices(liveData.invoices);
       return { ok: true };
     } catch (error) {
       const message = getReadableError(error);
@@ -363,7 +361,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadLastOrderToCart = useCallback(() => {
     if (!currentUser?.branchId) return;
-    const lastOrder = getLastOrderForBranch(currentUser.branchId);
+    const lastOrder = orders
+      .filter((order) => order.branchId === currentUser.branchId && order.status !== 'draft')
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
     if (!lastOrder) return;
     setCart(
       lastOrder.lines.map((line) => ({
@@ -373,7 +373,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }))
     );
     setCartNotes(lastOrder.notes ?? '');
-  }, [currentUser]);
+  }, [currentUser, orders]);
 
   const getCartTotal = useCallback(() => {
     return cart.reduce((sum, item) => {
@@ -525,8 +525,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const updateDeliveryStopStatus = useCallback(
-    (deliveryId: string, stopId: string, status: DeliveryStop['status']) => {
-      // TODO: Replace with API call
+    async (deliveryId: string, stopId: string, status: DeliveryStop['status']) => {
+      const { error } = await supabase
+        .from('delivery_stops')
+        .update({
+          status,
+          delivered_at: status === 'delivered' ? new Date().toISOString() : null,
+        })
+        .eq('id', stopId);
+
+      if (error) {
+        setDataError(error.message);
+        return;
+      }
+
       setDeliveries((prev) =>
         prev.map((d) =>
           d.id === deliveryId
@@ -546,8 +558,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [addAuditEvent]
   );
 
-  const markInvoicePaid = useCallback((invoiceId: string) => {
-    // TODO: Replace with API call
+  const moveDeliveryStop = useCallback(async (deliveryId: string, stopId: string, direction: 'up' | 'down') => {
+    const delivery = deliveries.find((item) => item.id === deliveryId);
+    if (!delivery) return;
+
+    const stops = [...delivery.stops].sort((a, b) => a.stopNumber - b.stopNumber);
+    const currentIndex = stops.findIndex((stop) => stop.id === stopId);
+    if (currentIndex < 0) return;
+
+    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= stops.length) return;
+
+    [stops[currentIndex], stops[nextIndex]] = [stops[nextIndex], stops[currentIndex]];
+    const renumberedStops = stops.map((stop, index) => ({
+      ...stop,
+      stopNumber: index + 1,
+    }));
+
+    setDeliveries((prev) =>
+      prev.map((delivery) => {
+        if (delivery.id !== deliveryId) return delivery;
+        return { ...delivery, stops: renumberedStops };
+      })
+    );
+
+    const updates = await Promise.all(
+      renumberedStops.map((stop) =>
+        supabase.from('delivery_stops').update({ stop_number: stop.stopNumber }).eq('id', stop.id)
+      )
+    );
+    const error = updates.find((result) => result.error)?.error;
+    if (error) {
+      setDataError(error.message);
+      await refreshData();
+    }
+  }, [deliveries, refreshData]);
+
+  const markInvoicePaid = useCallback(async (invoiceId: string) => {
+    const invoice = invoices.find((inv) => inv.id === invoiceId);
+    if (!invoice) return;
+
+    const { error } = await supabase
+      .from('invoices')
+      .update({
+        status: 'paid',
+        paid_amount: invoice.grandTotal,
+      })
+      .eq('id', invoiceId);
+
+    if (error) {
+      setDataError(error.message);
+      return;
+    }
+
     setInvoices((prev) =>
       prev.map((inv) =>
         inv.id === invoiceId
@@ -563,20 +626,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addAuditEvent({
       entityType: 'invoice',
       entityId: invoiceId,
-      action: 'Invoice marked paid',
-    });
-  }, [addAuditEvent]);
+        action: 'Invoice marked paid',
+      });
+  }, [addAuditEvent, invoices]);
 
   const addInvoicePayment = useCallback(
-    (invoiceId: string, amount: number, method = 'Cash') => {
+    async (invoiceId: string, amount: number, method = 'Cash') => {
+      const invoice = invoices.find((inv) => inv.id === invoiceId);
+      if (!invoice) return;
+
+      const paidAmount = Math.min(invoice.grandTotal, (invoice.paidAmount ?? 0) + amount);
+      const paymentStatus = paidAmount >= invoice.grandTotal ? 'paid' : 'partial';
+      const { error: paymentError } = await supabase.from('payments').insert({
+        invoice_id: invoiceId,
+        amount,
+        method,
+        recorded_by: currentUser?.id ?? null,
+      });
+
+      if (paymentError) {
+        setDataError(paymentError.message);
+        return;
+      }
+
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .update({
+          status: paymentStatus,
+          paid_amount: paidAmount,
+        })
+        .eq('id', invoiceId);
+
+      if (invoiceError) {
+        setDataError(invoiceError.message);
+        return;
+      }
+
       setInvoices((prev) =>
         prev.map((inv) => {
           if (inv.id !== invoiceId) return inv;
-          const paidAmount = Math.min(inv.grandTotal, (inv.paidAmount ?? 0) + amount);
           return {
             ...inv,
             paidAmount,
-            paymentStatus: paidAmount >= inv.grandTotal ? 'paid' : 'partial',
+            paymentStatus,
             lastPaymentDate: getDateKey(),
           };
         })
@@ -594,7 +686,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         targetRoute: `/(main)/invoice/${invoiceId}`,
       });
     },
-    [addAuditEvent, addNotification]
+    [addAuditEvent, addNotification, currentUser, invoices]
   );
 
   const updateStockItemPrice = useCallback(
@@ -891,6 +983,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateOrderStatus,
         updateOrderLineQuantity,
         updateDeliveryStopStatus,
+        moveDeliveryStop,
         markInvoicePaid,
         addInvoicePayment,
         updateStockItemPrice,
@@ -943,4 +1036,4 @@ export function useDashboardStats() {
   };
 }
 
-export { mockStockItems, calculateOrderTotal };
+export { calculateOrderTotal };

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, View, Text, ScrollView, StyleSheet, SafeAreaView, Modal, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { stockCategories } from '@/data/mockStockItems';
+import { stockCategories } from '@/constants/stockCategories';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { CategoryFilter } from '@/components/CategoryFilter';
 import { AppCard } from '@/components/AppCard';
@@ -37,10 +37,6 @@ export default function InventoryScreen() {
   const editingStock = priceEditor
     ? stockItems.find((stock) => stock.id === priceEditor.stockItemId)
     : undefined;
-
-  const showDemoMessage = (action: string) => {
-    Alert.alert(t('demoAction'), t('demoInventory', { action }));
-  };
 
   const openItemEditor = (stock?: StockItem) => {
     setItemEditor({
@@ -183,20 +179,6 @@ export default function InventoryScreen() {
               textStyle={styles.topBtnText}
             />
           )}
-          <AppButton
-            title={isArabic ? 'تعديل مخزون' : 'Adjust Stock'}
-            onPress={() => showDemoMessage(isArabic ? 'Select a batch from an item to adjust it.' : 'Select a batch from an item to adjust it.')}
-            variant="outline"
-            style={styles.topBtn}
-            textStyle={styles.topBtnText}
-          />
-          <AppButton
-            title={isArabic ? 'حركة المخزون' : 'Movement History'}
-            onPress={() => showDemoMessage(isArabic ? 'حركة المخزون' : 'Movement History')}
-            variant="outline"
-            style={styles.topBtn}
-            textStyle={styles.topBtnText}
-          />
         </View>
 
         {items.map(({ inv, stock }) => {

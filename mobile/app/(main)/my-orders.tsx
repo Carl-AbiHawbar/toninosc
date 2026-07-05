@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
-import { getOrderItemCount } from '@/data/mockOrders';
+import { getOrderItemCount } from '@/utils/orderHelpers';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { StatusBadge } from '@/components/StatusBadge';

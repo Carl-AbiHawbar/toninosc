@@ -10,7 +10,7 @@ import { getDateKey } from '@/utils/helpers';
 
 export default function DriverDeliveriesScreen() {
   const router = useRouter();
-  const { currentUser, deliveries, updateDeliveryStopStatus, language, themeColors, t } = useApp();
+  const { currentUser, deliveries, updateDeliveryStopStatus, moveDeliveryStop, language, themeColors, t } = useApp();
   const today = getDateKey();
 
   const todayDelivery = deliveries.find(
@@ -31,6 +31,7 @@ export default function DriverDeliveriesScreen() {
   }
 
   const completed = todayDelivery.stops.filter((s) => s.status === 'delivered').length;
+  const orderedStops = [...todayDelivery.stops].sort((a, b) => a.stopNumber - b.stopNumber);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
@@ -44,11 +45,35 @@ export default function DriverDeliveriesScreen() {
           }
         />
 
-        {todayDelivery.stops
-          .sort((a, b) => a.stopNumber - b.stopNumber)
-          .map((stop) => (
+        <View style={styles.routeHeader}>
+          <Text style={[styles.routeTitle, { color: themeColors.text }]}>
+            {language === 'ar' ? 'ترتيب التوصيل' : 'Delivery order'}
+          </Text>
+        </View>
+
+        {orderedStops.map((stop, index) => (
+          <View key={stop.id} style={styles.stopBlock}>
+            <View style={styles.reorderRow}>
+              <AppButton
+                title={language === 'ar' ? 'أعلى' : 'Up'}
+                icon="↑"
+                onPress={() => moveDeliveryStop(todayDelivery.id, stop.id, 'up')}
+                disabled={index === 0}
+                variant="outline"
+                style={styles.reorderButton}
+                textStyle={styles.reorderText}
+              />
+              <AppButton
+                title={language === 'ar' ? 'أسفل' : 'Down'}
+                icon="↓"
+                onPress={() => moveDeliveryStop(todayDelivery.id, stop.id, 'down')}
+                disabled={index === orderedStops.length - 1}
+                variant="outline"
+                style={styles.reorderButton}
+                textStyle={styles.reorderText}
+              />
+            </View>
             <DeliveryCard
-              key={stop.id}
               stop={stop}
               onStatusChange={(status) =>
                 updateDeliveryStopStatus(todayDelivery.id, stop.id, status)
@@ -57,7 +82,8 @@ export default function DriverDeliveriesScreen() {
                 router.push(`/(main)/driver-delivery/${stop.id}?deliveryId=${todayDelivery.id}`)
               }
             />
-          ))}
+          </View>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -67,4 +93,10 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.lg, paddingBottom: spacing.xxl },
   empty: { fontSize: 16, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xl },
+  routeHeader: { marginBottom: spacing.sm },
+  routeTitle: { fontSize: 16, fontWeight: '800' },
+  stopBlock: { marginBottom: spacing.sm },
+  reorderRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
+  reorderButton: { flex: 1, minHeight: 38, paddingVertical: spacing.xs },
+  reorderText: { fontSize: 13 },
 });

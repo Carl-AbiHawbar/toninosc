@@ -1,7 +1,6 @@
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useApp, calculateOrderTotal } from '@/context/AppContext';
-import { mockUsers } from '@/data/mockUsers';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppCard } from '@/components/AppCard';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -10,7 +9,7 @@ import { formatCurrency, formatDate } from '@/utils/helpers';
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { orders, branches, stockItems, auditEvents, language, themeColors, t } = useApp();
+  const { orders, branches, stockItems, users, auditEvents, language, themeColors, t } = useApp();
   const isArabic = language === 'ar';
 
   const order = orders.find((o) => o.id === id);
@@ -89,7 +88,7 @@ export default function OrderDetailScreen() {
           </AppCard>
         ) : (
           orderAuditEvents.map((event) => {
-            const actor = mockUsers.find((user) => user.id === event.actorUserId);
+            const actor = users.find((user) => user.id === event.actorUserId);
             return (
               <AppCard key={event.id} style={styles.auditCard}>
                 <Text style={[styles.auditAction, { color: themeColors.text }, isArabic && styles.rtlText]}>

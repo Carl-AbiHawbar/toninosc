@@ -5,7 +5,7 @@ This folder contains the first database migration for the Tonino supply app.
 ## What is included
 
 - Real branches, including Qartaba, City Mall, and Kfardebian.
-- Stock items with the current placeholder/known prices.
+- Stock items with the configured launch prices.
 - Branch ownership flags for franchise and free-supply branches.
 - Stock batches with production date, expiry date, batch number, and quantity.
 - Order, approval, cancellation, delivery, invoice, and payment tracking tables.
@@ -45,7 +45,7 @@ furn-el-chebbak -> furn-el-chebbak@toninocrepes.com
 For production, create users in Supabase Auth, then add a matching row in `profiles`
 with the same user id, username, role, and branch.
 
-For the current placeholder users, run the setup script from the repo root:
+For the initial user accounts, run the setup script from the repo root:
 
 ```powershell
 $env:SUPABASE_URL='https://your-project-ref.supabase.co'
@@ -53,5 +53,6 @@ $env:SUPABASE_SERVICE_ROLE_KEY='your-service-role-key'
 node scripts/create-supabase-users.js
 ```
 
-The script creates admin, warehouse, finance, driver, supplier, and all branch users
-with the temporary password `Tonino123!`.
+The script creates admin, warehouse, finance, driver, supplier, and all branch users.
+The admin password defaults to `1234`; every other user receives a randomized password
+that is printed by the script after setup.

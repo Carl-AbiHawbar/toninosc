@@ -8,9 +8,13 @@
     "scheme": "tonino-supply",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.toninocrepes.supply",
+      "buildNumber": "1",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.toninocrepes.supply",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#F9FAFB",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
