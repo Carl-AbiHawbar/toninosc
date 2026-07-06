@@ -11,6 +11,7 @@ import { borderRadius, spacing } from '@/theme/spacing';
 import { formatCurrency, getInventoryStatusColor, getInventoryStatusLabel } from '@/utils/helpers';
 import { inventoryFilterLabelsByLanguage, inventoryStatusLabelsByLanguage } from '@/i18n/translations';
 import { StockCategory, StockItem } from '@/types';
+import { getStockItemCategory, getStockItemName, getStockItemUnit } from '@/utils/stockLocalization';
 
 const inventoryFilters = ['All', 'Low Stock', 'Critical', 'Expiring Soon'] as const;
 
@@ -37,6 +38,7 @@ export default function InventoryScreen() {
   const editingStock = priceEditor
     ? stockItems.find((stock) => stock.id === priceEditor.stockItemId)
     : undefined;
+  const editingStockName = getStockItemName(editingStock, language);
 
   const openItemEditor = (stock?: StockItem) => {
     setItemEditor({
@@ -151,9 +153,11 @@ export default function InventoryScreen() {
             </Text>
             {reorderSuggestions.map(({ stock, suggestedQty }) => (
               <View key={stock.id} style={styles.reorderRow}>
-                <Text style={[styles.reorderItem, { color: themeColors.text }]}>{stock.name}</Text>
+                <Text style={[styles.reorderItem, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                  {getStockItemName(stock, language)}
+                </Text>
                 <Text style={[styles.reorderQty, { color: themeColors.primary }]}>
-                  {suggestedQty} {stock.unit}
+                  {suggestedQty} {getStockItemUnit(stock, language)}
                 </Text>
               </View>
             ))}
@@ -207,9 +211,11 @@ export default function InventoryScreen() {
               <View style={styles.itemRow}>
                 <Text style={styles.emoji}>{stock.imageEmoji}</Text>
                 <View style={styles.itemInfo}>
-                  <Text style={[styles.itemName, { color: themeColors.text }, isArabic && styles.rtlText]}>{stock.name}</Text>
+                  <Text style={[styles.itemName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                    {getStockItemName(stock, language)}
+                  </Text>
                   <Text style={[styles.itemCategory, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
-                    {stock.category} - {stock.unit}
+                    {getStockItemCategory(stock, language)} - {getStockItemUnit(stock, language)}
                   </Text>
                   <View style={styles.priceRow}>
                     <Text style={[styles.priceText, { color: themeColors.primary }]}>
@@ -267,7 +273,7 @@ export default function InventoryScreen() {
                             onPress={() =>
                               setAdjustEditor({
                                 batchId: batch.id,
-                                itemName: stock.name,
+                                itemName: getStockItemName(stock, language),
                                 batchNumber: batch.batchNumber,
                                 delta: '',
                                 note: '',
@@ -304,7 +310,7 @@ export default function InventoryScreen() {
               {isArabic ? 'Edit price' : 'Edit price'}
             </Text>
             <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
-              {editingStock?.name}
+              {editingStockName}
             </Text>
             <TextInput
               style={[

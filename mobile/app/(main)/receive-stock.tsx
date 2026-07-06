@@ -10,6 +10,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { useApp } from '@/context/AppContext';
 import { StockItemSupplier } from '@/types';
 import { borderRadius, spacing } from '@/theme/spacing';
+import { getStockItemName, getStockItemSearchText, getStockItemUnit } from '@/utils/stockLocalization';
 
 type ReceiveLine = {
   stockItemId: string;
@@ -33,9 +34,9 @@ export default function ReceiveStockScreen() {
   const filteredItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     return stockItems
-      .filter((item) => !query || `${item.name} ${item.category} ${item.unit}`.toLowerCase().includes(query))
+      .filter((item) => !query || getStockItemSearchText(item, language).includes(query))
       .slice(0, 40);
-  }, [search, stockItems]);
+  }, [language, search, stockItems]);
 
   const lineCount = lines.reduce((sum, line) => sum + line.quantity, 0);
   const getLine = (stockItemId: string) => lines.find((line) => line.stockItemId === stockItemId);
@@ -208,9 +209,11 @@ export default function ReceiveStockScreen() {
               <View style={styles.itemRow}>
                 <Text style={styles.emoji}>{item.imageEmoji}</Text>
                 <View style={styles.itemInfo}>
-                  <Text style={[styles.itemName, { color: themeColors.text }]}>{item.name}</Text>
+                  <Text style={[styles.itemName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                    {getStockItemName(item, language)}
+                  </Text>
                   <Text style={[styles.itemMeta, { color: themeColors.textSecondary }]}>
-                    Current: {inv?.currentStock ?? 0} {item.unit}
+                    Current: {inv?.currentStock ?? 0} {getStockItemUnit(item, language)}
                   </Text>
                   {item.suppliers?.length ? (
                     <Text style={[styles.itemMeta, { color: themeColors.textSecondary }]}>
@@ -342,4 +345,8 @@ const styles = StyleSheet.create({
   dateText: { fontSize: 13, fontWeight: '700' },
   noExpiryText: { fontSize: 13, fontWeight: '700' },
   emptyText: { fontSize: 15, textAlign: 'center' },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 });

@@ -9,6 +9,7 @@ import { calculateOrderTotal, useApp } from '@/context/AppContext';
 import { BranchOrder, StockItem } from '@/types';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate, getMonthKey } from '@/utils/helpers';
+import { getStockItemName, getStockItemUnit } from '@/utils/stockLocalization';
 
 type BranchTotals = {
   id: string;
@@ -42,7 +43,7 @@ function getOrderQty(order: BranchOrder) {
   return order.lines.reduce((sum, line) => sum + line.quantity, 0);
 }
 
-function getItemTotals(orders: BranchOrder[], stockItems: StockItem[]) {
+function getItemTotals(orders: BranchOrder[], stockItems: StockItem[], language: 'en' | 'ar') {
   const itemMap = new Map<string, ItemTotal>();
 
   orders.forEach((order) => {
@@ -50,8 +51,8 @@ function getItemTotals(orders: BranchOrder[], stockItems: StockItem[]) {
       const stock = stockItems.find((item) => item.id === line.stockItemId);
       const current = itemMap.get(line.stockItemId) ?? {
         id: line.stockItemId,
-        name: stock?.name ?? 'Unknown item',
-        unit: stock?.unit ?? 'unit',
+        name: getStockItemName(stock, language),
+        unit: getStockItemUnit(stock, language) || 'unit',
         qty: 0,
         value: 0,
       };
@@ -113,10 +114,11 @@ export default function ReportsScreen() {
       allTotals,
       topItems: getItemTotals(
         activeOrders.filter((order) => order.createdAt.startsWith(monthKey)),
-        stockItems
+        stockItems,
+        language
       ).slice(0, 6),
     };
-  }, [branches, monthKey, orders, stockItems, yearKey]);
+  }, [branches, language, monthKey, orders, stockItems, yearKey]);
 
   const selectedBranch = report.branchTotals.find((branch) => branch.id === selectedBranchId);
 
@@ -146,9 +148,9 @@ export default function ReportsScreen() {
 
     return {
       months,
-      topItems: getItemTotals(branchYearOrders, stockItems).slice(0, 10),
+      topItems: getItemTotals(branchYearOrders, stockItems, language).slice(0, 10),
     };
-  }, [locale, report.activeOrders, selectedBranchId, stockItems, yearKey]);
+  }, [language, locale, report.activeOrders, selectedBranchId, stockItems, yearKey]);
 
   const selectedMonth = selectedBranchDetails?.months.find((month) => month.key === selectedMonthKey);
 
@@ -377,9 +379,11 @@ function OrderHistoryCard({ order, stockItems }: { order: BranchOrder; stockItem
         const stock = stockItems.find((item) => item.id === line.stockItemId);
         return (
           <View key={line.id} style={styles.orderLineRow}>
-            <Text style={[styles.orderLineName, { color: themeColors.text }]}>{stock?.name ?? line.stockItemId}</Text>
+            <Text style={[styles.orderLineName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+              {stock ? getStockItemName(stock, language) : line.stockItemId}
+            </Text>
             <Text style={[styles.orderLineQty, { color: themeColors.textSecondary }]}>
-              {line.quantity} {stock?.unit ?? ''} x {formatCurrency(line.unitPrice)}
+              {line.quantity} {getStockItemUnit(stock, language)} x {formatCurrency(line.unitPrice)}
             </Text>
           </View>
         );
@@ -494,4 +498,8 @@ const styles = StyleSheet.create({
   itemMeta: { fontSize: 13, marginTop: 2 },
   itemValue: { fontSize: 14, fontWeight: '800' },
   emptyText: { fontSize: 15, textAlign: 'center' },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 });

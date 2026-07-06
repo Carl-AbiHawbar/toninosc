@@ -6,6 +6,7 @@ import { AppCard } from '@/components/AppCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate } from '@/utils/helpers';
+import { getStockItemName } from '@/utils/stockLocalization';
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -47,7 +48,9 @@ export default function OrderDetailScreen() {
               <View style={styles.lineRow}>
                 <Text style={styles.emoji}>{stock?.imageEmoji ?? 'Box'}</Text>
                 <View style={styles.lineInfo}>
-                  <Text style={[styles.lineName, { color: themeColors.text }]}>{stock?.name ?? (isArabic ? 'مادة' : 'Item')}</Text>
+                  <Text style={[styles.lineName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                    {getStockItemName(stock, language)}
+                  </Text>
                   <Text style={[styles.lineQty, { color: themeColors.textSecondary }]}>
                     {line.quantity} x {formatCurrency(line.unitPrice)}
                   </Text>

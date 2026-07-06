@@ -7,6 +7,7 @@ import { AppButton } from '@/components/AppButton';
 import { StatusBadge } from '@/components/StatusBadge';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency } from '@/utils/helpers';
+import { getStockItemName, getStockItemUnit } from '@/utils/stockLocalization';
 
 export default function DriverDeliveryDetailScreen() {
   const { id, deliveryId } = useLocalSearchParams<{ id: string; deliveryId: string }>();
@@ -48,8 +49,8 @@ export default function DriverDeliveryDetailScreen() {
         <Text style={[styles.sectionTitle, { color: themeColors.text }]}>{isArabic ? 'قائمة التوصيل' : 'Delivery Checklist'}</Text>
         {stop.items.map((item, idx) => (
           <AppCard key={idx} style={styles.checkItem}>
-            <Text style={[styles.checkText, { color: themeColors.text }]}>
-              {item.quantity} {item.unit} - {item.name}
+            <Text style={[styles.checkText, { color: themeColors.text }, isArabic && styles.rtlText]}>
+              {item.quantity} {getStockItemUnit(item, language)} - {getStockItemName(item, language)}
             </Text>
           </AppCard>
         ))}
@@ -99,4 +100,8 @@ const styles = StyleSheet.create({
   confirmLabel: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
   confirmHint: { fontSize: 11, textAlign: 'center', marginTop: 2 },
   buttons: { gap: spacing.md },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 });

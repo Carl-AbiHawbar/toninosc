@@ -20,6 +20,7 @@ import { AppButton } from '@/components/AppButton';
 import { colors } from '@/theme/colors';
 import { borderRadius, spacing } from '@/theme/spacing';
 import { formatCurrency } from '@/utils/helpers';
+import { getStockItemSearchText } from '@/utils/stockLocalization';
 
 export default function BranchOrderScreen() {
   const router = useRouter();
@@ -50,10 +51,10 @@ export default function BranchOrderScreen() {
   const filteredItems = useMemo(() => {
     return stockItems.filter((item) => {
       const matchesCategory = category === 'All' || item.category === category;
-      const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = getStockItemSearchText(item, language).includes(search.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [category, search, stockItems]);
+  }, [category, language, search, stockItems]);
 
   const getQuantity = (stockItemId: string) =>
     cart.find((c) => c.stockItemId === stockItemId)?.quantity ?? 0;

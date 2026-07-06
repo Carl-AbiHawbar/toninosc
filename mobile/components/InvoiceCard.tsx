@@ -7,6 +7,7 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import { useApp } from '@/context/AppContext';
+import { getStockItemName, getStockItemUnit } from '@/utils/stockLocalization';
 
 interface InvoiceCardProps {
   invoice: Invoice;
@@ -52,8 +53,12 @@ export function InvoiceCard({ invoice, onPress, onMarkPaid, onAddPayment, showAc
       {invoice.lines.map((line) => (
         <View key={line.id} style={styles.lineRow}>
           <View style={styles.lineInfo}>
-            <Text style={[styles.lineName, { color: themeColors.text }]}>{line.name}</Text>
-            <Text style={[styles.lineQty, { color: themeColors.textSecondary }]}>{line.quantity} {line.unit} × {formatCurrency(line.unitPrice)}</Text>
+            <Text style={[styles.lineName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+              {getStockItemName(line, language)}
+            </Text>
+            <Text style={[styles.lineQty, { color: themeColors.textSecondary }]}>
+              {line.quantity} {getStockItemUnit(line, language)} x {formatCurrency(line.unitPrice)}
+            </Text>
           </View>
           <Text style={[styles.lineTotal, { color: themeColors.text }]}>{formatCurrency(line.total)}</Text>
         </View>
@@ -221,5 +226,9 @@ const styles = StyleSheet.create({
   viewBtn: {
     marginTop: spacing.sm,
     minHeight: 44,
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

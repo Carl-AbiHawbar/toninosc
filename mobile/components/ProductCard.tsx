@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { colors } from '@/theme/colors';
 import { borderRadius, spacing } from '@/theme/spacing';
 import { formatCurrency } from '@/utils/helpers';
+import { getStockItemName, getStockItemUnit } from '@/utils/stockLocalization';
 
 interface ProductCardProps {
   item: StockItem;
@@ -30,6 +31,8 @@ export function ProductCard({
   const isArabic = language === 'ar';
   const stockColor =
     warehouseStock <= 5 ? themeColors.error : warehouseStock <= 15 ? themeColors.warning : themeColors.success;
+  const itemName = getStockItemName(item, language);
+  const itemUnit = getStockItemUnit(item, language);
 
   return (
     <AppCard style={[styles.card, showWarning && styles.warningBorder]}>
@@ -43,9 +46,9 @@ export function ProductCard({
           <Text style={styles.emoji}>{item.imageEmoji}</Text>
         </View>
         <View style={styles.info}>
-          <Text style={[styles.name, { color: themeColors.text }, isArabic && styles.rtlText]}>{item.name}</Text>
+          <Text style={[styles.name, { color: themeColors.text }, isArabic && styles.rtlText]}>{itemName}</Text>
           <Text style={[styles.unit, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>
-            {item.unit} - {formatCurrency(item.price)}
+            {itemUnit} - {formatCurrency(item.price)}
           </Text>
           <View style={[styles.stockRow, isArabic && styles.rowRtl]}>
             <View style={[styles.stockDot, { backgroundColor: stockColor }]} />

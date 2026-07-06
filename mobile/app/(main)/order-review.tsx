@@ -7,6 +7,7 @@ import { AppButton } from '@/components/AppButton';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency } from '@/utils/helpers';
+import { getStockItemName, getStockItemUnit } from '@/utils/stockLocalization';
 
 export default function OrderReviewScreen() {
   const router = useRouter();
@@ -64,9 +65,11 @@ export default function OrderReviewScreen() {
               <View style={styles.lineRow}>
                 <Text style={styles.lineEmoji}>{stock.imageEmoji}</Text>
                 <View style={styles.lineInfo}>
-                  <Text style={[styles.lineName, { color: themeColors.text }]}>{stock.name}</Text>
+                  <Text style={[styles.lineName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                    {getStockItemName(stock, language)}
+                  </Text>
                   <Text style={[styles.lineDetail, { color: themeColors.textSecondary }]}>
-                    {item.quantity} {stock.unit} × {formatCurrency(stock.price)}
+                    {item.quantity} {getStockItemUnit(stock, language)} x {formatCurrency(stock.price)}
                   </Text>
                   {item.note && <Text style={styles.lineNote}>📝 {item.note}</Text>}
                 </View>

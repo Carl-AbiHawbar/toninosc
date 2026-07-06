@@ -8,6 +8,7 @@ import { AppButton } from '@/components/AppButton';
 import { OrderStatus } from '@/types';
 import { spacing } from '@/theme/spacing';
 import { formatCurrency, formatDate } from '@/utils/helpers';
+import { getStockItemName } from '@/utils/stockLocalization';
 
 const statusGroups: { label: string; statuses: OrderStatus[] }[] = [
   { label: 'Pending Approval', statuses: ['submitted'] },
@@ -104,11 +105,12 @@ export default function WarehouseOrdersScreen() {
                       const stock = stockItems.find((item) => item.id === line.stockItemId);
                       const inv = inventory.find((balance) => balance.stockItemId === line.stockItemId);
                       const isLow = (inv?.currentStock ?? 0) < line.quantity;
+                      const itemName = getStockItemName(stock, language);
                       return (
                         <View key={line.id} style={styles.pickRow}>
                           <View style={styles.pickItemWrap}>
                             <Text style={[styles.pickItem, { color: themeColors.text }]}>
-                              {stock?.imageEmoji} {stock?.name}
+                              {stock?.imageEmoji} {itemName}
                             </Text>
                             {(line.allocations?.length ?? 0) > 0 && (
                               <Text style={[styles.batchText, { color: themeColors.textSecondary }]}>
@@ -132,7 +134,7 @@ export default function WarehouseOrdersScreen() {
                                 setLineEditor({
                                   orderId: order.id,
                                   lineId: line.id,
-                                  itemName: stock?.name ?? 'Item',
+                                  itemName,
                                   quantity: String(line.quantity),
                                   note: line.note ?? '',
                                 })
@@ -162,7 +164,7 @@ export default function WarehouseOrdersScreen() {
                               setLineEditor({
                                 orderId: order.id,
                                 lineId: firstLine.id,
-                                itemName: stock?.name ?? 'Item',
+                                itemName: getStockItemName(stock, language),
                                 quantity: String(firstLine.quantity),
                                 note: firstLine.note ?? '',
                               });

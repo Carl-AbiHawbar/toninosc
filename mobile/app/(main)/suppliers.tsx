@@ -5,6 +5,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { SearchBar } from '@/components/SearchBar';
 import { useApp } from '@/context/AppContext';
 import { spacing } from '@/theme/spacing';
+import { getStockItemCategory, getStockItemName, getStockItemSearchText, getStockItemUnit } from '@/utils/stockLocalization';
 import { useMemo, useState } from 'react';
 
 export default function SuppliersScreen() {
@@ -64,7 +65,7 @@ export default function SuppliersScreen() {
             item,
             source: item.suppliers?.find((source) => source.supplierId === supplier.id),
           }))
-          .sort((a, b) => a.item.name.localeCompare(b.item.name));
+          .sort((a, b) => getStockItemName(a.item, language).localeCompare(getStockItemName(b.item, language)));
 
         return { supplier, suppliedItems };
       })
@@ -72,10 +73,10 @@ export default function SuppliersScreen() {
         if (!query) return true;
         return (
           `${supplier.name} ${supplier.contactName} ${supplier.phone} ${supplier.email}`.toLowerCase().includes(query) ||
-          suppliedItems.some(({ item }) => `${item.name} ${item.category}`.toLowerCase().includes(query))
+          suppliedItems.some(({ item }) => getStockItemSearchText(item, language).includes(query))
         );
       });
-  }, [search, stockItems, suppliers]);
+  }, [language, search, stockItems, suppliers]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
@@ -137,9 +138,11 @@ export default function SuppliersScreen() {
               suppliedItems.map(({ item, source }) => (
                 <View key={item.id} style={[styles.itemRow, { borderTopColor: themeColors.border }]}>
                   <View style={styles.itemText}>
-                    <Text style={[styles.itemName, { color: themeColors.text }]}>{item.name}</Text>
+                    <Text style={[styles.itemName, { color: themeColors.text }, isArabic && styles.rtlText]}>
+                      {getStockItemName(item, language)}
+                    </Text>
                     <Text style={[styles.itemMeta, { color: themeColors.textSecondary }]}>
-                      {item.category} · {source?.supplierUnit ?? item.unit}
+                      {getStockItemCategory(item, language)} - {source?.supplierUnit ?? getStockItemUnit(item, language)}
                     </Text>
                   </View>
                   <View style={styles.itemBadges}>
@@ -220,4 +223,8 @@ const styles = StyleSheet.create({
   modalButtons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
   cancelText: { fontSize: 16, fontWeight: '700', padding: spacing.sm },
   saveButton: { minWidth: 140 },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 });
