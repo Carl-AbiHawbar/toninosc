@@ -72,7 +72,8 @@ interface AppContextType {
   saveDraft: () => Promise<BranchOrder | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<{ ok: boolean; error?: string }>;
   updateOrderLineQuantity: (orderLineId: string, quantity: number, note: string) => Promise<{ ok: boolean; error?: string }>;
-  assignOrderToDriver: (orderId: string, driverUserId: string) => Promise<{ ok: boolean; error?: string }>;
+  assignOrderToDriver: (orderId: string, driverUserId: string, destinationBranchId?: string) => Promise<{ ok: boolean; error?: string }>;
+  markOrderForWarehousePickup: (orderId: string) => Promise<{ ok: boolean; error?: string }>;
   updateDeliveryStopStatus: (deliveryId: string, stopId: string, status: DeliveryStop['status']) => void;
   moveDeliveryStop: (deliveryId: string, stopId: string, direction: 'up' | 'down') => void;
   markInvoicePaid: (invoiceId: string) => void;
@@ -193,6 +194,18 @@ function getReadableError(error: unknown, fallback = 'Could not load live data')
 
   return message;
 }
+
+const defaultDeliveryBranchOrder = [
+  'mansourieh',
+  'sin-el-fil',
+  'dora',
+  'furn-el-chebbak',
+  'bliss',
+  'cola',
+  'khaldeh',
+  'saida',
+  'jal-dib',
+];
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -525,14 +538,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [addAuditEvent, refreshData]
   );
 
+  const renumberDeliveryStops = useCallback(
+    async (deliveryId: string) => {
+      const { data: stops, error } = await supabase
+        .from('delivery_stops')
+        .select('id, branch_id, stop_number')
+        .eq('delivery_id', deliveryId);
+
+      if (error) return { ok: false, error: error.message };
+
+      const branchOrderIndex = new Map(defaultDeliveryBranchOrder.map((slug, index) => [slug, index]));
+      const branchById = new Map(branches.map((branch) => [branch.id, branch]));
+      const orderedStops = [...(stops ?? [])].sort((a, b) => {
+        const branchA = branchById.get(a.branch_id);
+        const branchB = branchById.get(b.branch_id);
+        const indexA = branchOrderIndex.get(branchA?.slug ?? '') ?? 999;
+        const indexB = branchOrderIndex.get(branchB?.slug ?? '') ?? 999;
+        if (indexA !== indexB) return indexA - indexB;
+        return (a.stop_number ?? 0) - (b.stop_number ?? 0);
+      });
+
+      const updates = await Promise.all(
+        orderedStops.map((stop, index) =>
+          supabase.from('delivery_stops').update({ stop_number: index + 1 }).eq('id', stop.id)
+        )
+      );
+      const updateError = updates.find((result) => result.error)?.error;
+      return updateError ? { ok: false, error: updateError.message } : { ok: true };
+    },
+    [branches]
+  );
+
   const assignOrderToDriver = useCallback(
-    async (orderId: string, driverUserId: string) => {
+    async (orderId: string, driverUserId: string, destinationBranchId?: string) => {
       const order = orders.find((item) => item.id === orderId);
       const driver = users.find((user) => user.id === driverUserId && user.role === 'driver' && user.active !== false);
       const routeDate = getDateKey();
 
       if (!order) return { ok: false, error: 'Order not found' };
       if (!driver) return { ok: false, error: 'Driver not found' };
+      const deliveryBranchId = destinationBranchId ?? order.branchId;
+      const deliveryBranch = branches.find((branch) => branch.id === deliveryBranchId);
+      if (!deliveryBranch) return { ok: false, error: 'Drop location not found' };
 
       const { data: existingStops, error: existingStopsError } = await supabase
         .from('delivery_stops')
@@ -604,9 +651,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const { error: stopInsertError } = await supabase.from('delivery_stops').insert({
         delivery_id: deliveryId,
         order_id: orderId,
-        branch_id: order.branchId,
+        branch_id: deliveryBranchId,
         stop_number: nextStopNumber,
         status: 'pending',
+        note: deliveryBranchId === order.branchId ? null : `Drop at ${deliveryBranch.name}`,
       });
 
       if (stopInsertError) {
@@ -622,6 +670,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (orderError) {
         setDataError(orderError.message);
         return { ok: false, error: orderError.message };
+      }
+
+      const renumberResult = await renumberDeliveryStops(deliveryId);
+      if (!renumberResult.ok) {
+        setDataError(renumberResult.error ?? 'Could not order delivery route');
+        return renumberResult;
       }
 
       for (const previousDeliveryId of previousDeliveryIds) {
@@ -640,7 +694,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         entityType: 'delivery',
         entityId: deliveryId,
         action: 'Order assigned to driver',
-        note: `${order.orderNumber} - ${driver.name}`,
+        note: `${order.orderNumber} - ${driver.name} - ${deliveryBranch.name}`,
       });
       addNotification({
         userId: driverUserId,
@@ -653,7 +707,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await refreshData();
       return { ok: true };
     },
-    [addAuditEvent, addNotification, orders, refreshData, users]
+    [addAuditEvent, addNotification, branches, orders, refreshData, renumberDeliveryStops, users]
+  );
+
+  const markOrderForWarehousePickup = useCallback(
+    async (orderId: string) => {
+      const order = orders.find((item) => item.id === orderId);
+      if (!order) return { ok: false, error: 'Order not found' };
+
+      const { data: existingStops, error: existingStopsError } = await supabase
+        .from('delivery_stops')
+        .select('id, delivery_id')
+        .eq('order_id', orderId);
+
+      if (existingStopsError) {
+        setDataError(existingStopsError.message);
+        return { ok: false, error: existingStopsError.message };
+      }
+
+      const previousDeliveryIds = new Set((existingStops ?? []).map((stop) => stop.delivery_id));
+      const existingStopIds = (existingStops ?? []).map((stop) => stop.id);
+
+      if (existingStopIds.length > 0) {
+        const { error } = await supabase.from('delivery_stops').delete().in('id', existingStopIds);
+        if (error) {
+          setDataError(error.message);
+          return { ok: false, error: error.message };
+        }
+      }
+
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({ status: 'packed', updated_at: new Date().toISOString() })
+        .eq('id', orderId);
+
+      if (orderError) {
+        setDataError(orderError.message);
+        return { ok: false, error: orderError.message };
+      }
+
+      for (const previousDeliveryId of previousDeliveryIds) {
+        const { data: remainingStops } = await supabase
+          .from('delivery_stops')
+          .select('id')
+          .eq('delivery_id', previousDeliveryId)
+          .limit(1);
+
+        if ((remainingStops ?? []).length === 0) {
+          await supabase.from('deliveries').delete().eq('id', previousDeliveryId);
+        } else {
+          await renumberDeliveryStops(previousDeliveryId);
+        }
+      }
+
+      addAuditEvent({
+        entityType: 'order',
+        entityId: orderId,
+        action: 'Order ready for warehouse pickup',
+        note: order.orderNumber,
+      });
+      addNotification({
+        role: 'branch_manager',
+        title: 'Order ready for pickup',
+        body: `${order.orderNumber} is ready and waiting at the warehouse.`,
+        targetRoute: `/(main)/order-detail/${orderId}`,
+      });
+
+      await refreshData();
+      return { ok: true };
+    },
+    [addAuditEvent, addNotification, orders, refreshData, renumberDeliveryStops]
   );
 
   const updateDeliveryStopStatus = useCallback(
@@ -1115,6 +1238,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateOrderStatus,
         updateOrderLineQuantity,
         assignOrderToDriver,
+        markOrderForWarehousePickup,
         updateDeliveryStopStatus,
         moveDeliveryStop,
         markInvoicePaid,

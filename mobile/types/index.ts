@@ -69,6 +69,7 @@ export interface Country {
 export interface Branch {
   id: string;
   name: string;
+  slug?: string;
   address: string;
   city: string;
   countryId: string;
@@ -215,6 +216,7 @@ export interface DeliveryStop {
   id: string;
   stopNumber: number;
   branchId: string;
+  orderBranchId?: string;
   orderId: string;
   address: string;
   phone: string;

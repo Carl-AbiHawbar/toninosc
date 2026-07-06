@@ -30,6 +30,7 @@ type ProfileRow = {
 type BranchRow = {
   id: string;
   name: string;
+  slug?: string;
   address: string | null;
   city: string | null;
   phone: string | null;
@@ -217,6 +218,7 @@ function mapBranch(row: BranchRow): Branch {
   return {
     id: row.id,
     name: row.name,
+    slug: row.slug,
     address: row.address ?? '',
     city: row.city ?? '',
     countryId: 'country-1',
@@ -354,6 +356,7 @@ function mapDeliveryStop(row: DeliveryStopRow): DeliveryStop {
     id: row.id,
     stopNumber: row.stop_number,
     branchId: row.branch_id,
+    orderBranchId: row.orders?.branch_id,
     orderId: row.order_id,
     address: row.branches?.address ?? '',
     phone: row.branches?.phone ?? '',

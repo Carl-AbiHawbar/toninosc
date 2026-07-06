@@ -18,6 +18,8 @@ interface DeliveryCardProps {
 export function DeliveryCard({ stop, onStatusChange, onPress, compact }: DeliveryCardProps) {
   const { branches, themeColors, t } = useApp();
   const branch = branches.find((b) => b.id === stop.branchId);
+  const orderBranch = branches.find((b) => b.id === stop.orderBranchId);
+  const isDropForAnotherBranch = Boolean(orderBranch && orderBranch.id !== branch?.id);
 
   const openUrl = async (url: string, fallbackUrl?: string) => {
     try {
@@ -58,6 +60,11 @@ export function DeliveryCard({ stop, onStatusChange, onPress, compact }: Deliver
       </View>
 
       <Text style={[styles.branchName, { color: themeColors.text }]}>{branch?.name ?? 'Branch'}</Text>
+      {isDropForAnotherBranch && (
+        <Text style={[styles.orderBranch, { color: themeColors.warning }]}>
+          For: {orderBranch?.name}
+        </Text>
+      )}
       <Text style={[styles.address, { color: themeColors.textSecondary }]}>📍 {stop.address}</Text>
       <Text style={[styles.phone, { color: themeColors.textSecondary }]}>📞 {stop.phone}</Text>
 
@@ -116,6 +123,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: colors.text,
+    marginBottom: 4,
+  },
+  orderBranch: {
+    fontSize: 13,
+    fontWeight: '800',
     marginBottom: 4,
   },
   address: {

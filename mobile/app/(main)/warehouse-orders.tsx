@@ -37,6 +37,7 @@ export default function WarehouseOrdersScreen() {
     updateOrderStatus,
     updateOrderLineQuantity,
     assignOrderToDriver,
+    markOrderForWarehousePickup,
     language,
     themeColors,
     t,
@@ -48,9 +49,16 @@ export default function WarehouseOrdersScreen() {
     quantity: string;
     note: string;
   } | null>(null);
-  const [driverPicker, setDriverPicker] = useState<{ orderId: string } | null>(null);
+  const [driverPicker, setDriverPicker] = useState<{
+    orderId: string;
+    destinationBranchId?: string;
+    mode: 'delivery' | 'dropoff' | 'pickup';
+  } | null>(null);
   const [assigningDriverId, setAssigningDriverId] = useState<string | null>(null);
   const drivers = users.filter((user) => user.role === 'driver' && user.active !== false);
+  const pickerOrder = driverPicker ? orders.find((order) => order.id === driverPicker.orderId) : undefined;
+  const pickerOrderBranch = branches.find((branch) => branch.id === pickerOrder?.branchId);
+  const pickerDestinationBranch = branches.find((branch) => branch.id === driverPicker?.destinationBranchId);
 
   const handleAction = async (orderId: string, status: OrderStatus) => {
     const result = await updateOrderStatus(orderId, status);
@@ -94,12 +102,29 @@ export default function WarehouseOrdersScreen() {
   const handleAssignDriver = async (driverUserId: string) => {
     if (!driverPicker) return;
     setAssigningDriverId(driverUserId);
-    const result = await assignOrderToDriver(driverPicker.orderId, driverUserId);
+    const result = await assignOrderToDriver(driverPicker.orderId, driverUserId, driverPicker.destinationBranchId);
     setAssigningDriverId(null);
 
     if (!result.ok) {
       Alert.alert(
         language === 'ar' ? 'Could not assign driver' : 'Could not assign driver',
+        result.error ?? (language === 'ar' ? 'Try again.' : 'Try again.')
+      );
+      return;
+    }
+
+    setDriverPicker(null);
+  };
+
+  const handleWarehousePickup = async () => {
+    if (!driverPicker) return;
+    setAssigningDriverId('pickup');
+    const result = await markOrderForWarehousePickup(driverPicker.orderId);
+    setAssigningDriverId(null);
+
+    if (!result.ok) {
+      Alert.alert(
+        language === 'ar' ? 'Could not mark pickup' : 'Could not mark pickup',
         result.error ?? (language === 'ar' ? 'Try again.' : 'Try again.')
       );
       return;
@@ -223,14 +248,14 @@ export default function WarehouseOrdersScreen() {
                       {order.status === 'packed' && (
                         <AppButton
                           title={assignedDriver ? `${t('assignDriver')}: ${assignedDriver.name}` : t('assignDriver')}
-                          onPress={() => setDriverPicker({ orderId: order.id })}
+                          onPress={() => setDriverPicker({ orderId: order.id, mode: 'delivery', destinationBranchId: order.branchId })}
                           style={styles.actionBtn}
                         />
                       )}
                       {['assigned_to_driver', 'out_for_delivery'].includes(order.status) && (
                         <AppButton
                           title={assignedDriver ? `${t('assignDriver')}: ${assignedDriver.name}` : t('assignDriver')}
-                          onPress={() => setDriverPicker({ orderId: order.id })}
+                          onPress={() => setDriverPicker({ orderId: order.id, mode: 'delivery', destinationBranchId: order.branchId })}
                           variant="outline"
                           style={styles.actionBtn}
                           textStyle={styles.actionText}
@@ -288,27 +313,127 @@ export default function WarehouseOrdersScreen() {
         <View style={[styles.modalOverlay, { backgroundColor: themeColors.overlay }]}>
           <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
             <Text style={[styles.modalTitle, { color: themeColors.text }]}>
-              {language === 'ar' ? 'Choose driver' : 'Choose driver'}
+              {language === 'ar' ? 'Fulfillment' : 'Fulfillment'}
             </Text>
             <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
-              {language === 'ar' ? 'The order will appear in the selected driver route for today.' : 'The order will appear in the selected driver route for today.'}
+              {pickerOrderBranch
+                ? language === 'ar'
+                  ? `Order for ${pickerOrderBranch.name}`
+                  : `Order for ${pickerOrderBranch.name}`
+                : language === 'ar'
+                  ? 'Choose how this order leaves the warehouse.'
+                  : 'Choose how this order leaves the warehouse.'}
             </Text>
+            <View style={styles.fulfillmentModes}>
+              <AppButton
+                title={language === 'ar' ? 'Deliver to branch' : 'Deliver to branch'}
+                onPress={() =>
+                  pickerOrder &&
+                  setDriverPicker({
+                    orderId: pickerOrder.id,
+                    mode: 'delivery',
+                    destinationBranchId: pickerOrder.branchId,
+                  })
+                }
+                variant={driverPicker?.mode === 'delivery' ? 'primary' : 'outline'}
+                style={styles.modeButton}
+                textStyle={styles.modeButtonText}
+              />
+              <AppButton
+                title={language === 'ar' ? 'Drop at another branch' : 'Drop at another branch'}
+                onPress={() =>
+                  pickerOrder &&
+                  setDriverPicker({
+                    orderId: pickerOrder.id,
+                    mode: 'dropoff',
+                    destinationBranchId: driverPicker?.destinationBranchId ?? pickerOrder.branchId,
+                  })
+                }
+                variant={driverPicker?.mode === 'dropoff' ? 'primary' : 'outline'}
+                style={styles.modeButton}
+                textStyle={styles.modeButtonText}
+              />
+              <AppButton
+                title={language === 'ar' ? 'Warehouse pickup' : 'Warehouse pickup'}
+                onPress={() =>
+                  pickerOrder &&
+                  setDriverPicker({
+                    orderId: pickerOrder.id,
+                    mode: 'pickup',
+                    destinationBranchId: undefined,
+                  })
+                }
+                variant={driverPicker?.mode === 'pickup' ? 'primary' : 'outline'}
+                style={styles.modeButton}
+                textStyle={styles.modeButtonText}
+              />
+            </View>
+            {driverPicker?.mode === 'pickup' ? (
+              <AppButton
+                title={language === 'ar' ? 'Mark ready and waiting for pickup' : 'Mark ready and waiting for pickup'}
+                onPress={handleWarehousePickup}
+                loading={assigningDriverId === 'pickup'}
+                disabled={Boolean(assigningDriverId)}
+                variant="success"
+                style={styles.driverButton}
+              />
+            ) : null}
+            {driverPicker?.mode === 'dropoff' ? (
+              <>
+                <Text style={[styles.fieldLabel, { color: themeColors.textSecondary }]}>
+                  {language === 'ar' ? 'Drop location' : 'Drop location'}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.branchScroll}>
+                  {branches.map((branch) => (
+                    <AppButton
+                      key={branch.id}
+                      title={branch.name.replace(/^Tonino\s+/i, '')}
+                      onPress={() =>
+                        setDriverPicker((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                destinationBranchId: branch.id,
+                              }
+                            : prev
+                        )
+                      }
+                      variant={driverPicker.destinationBranchId === branch.id ? 'primary' : 'outline'}
+                      style={styles.branchButton}
+                      textStyle={styles.branchButtonText}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
+            {driverPicker?.mode !== 'pickup' && (
+              <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
+                {pickerDestinationBranch
+                  ? language === 'ar'
+                    ? `Drop at ${pickerDestinationBranch.name}`
+                    : `Drop at ${pickerDestinationBranch.name}`
+                  : language === 'ar'
+                    ? 'Choose a drop location.'
+                    : 'Choose a drop location.'}
+              </Text>
+            )}
             {drivers.length === 0 ? (
               <Text style={[styles.empty, { color: themeColors.textSecondary }]}>
                 {language === 'ar' ? 'No drivers found.' : 'No drivers found.'}
               </Text>
             ) : (
+              driverPicker?.mode !== 'pickup' &&
               drivers.map((driver) => (
-                <AppButton
-                  key={driver.id}
-                  title={driver.name}
-                  onPress={() => handleAssignDriver(driver.id)}
-                  loading={assigningDriverId === driver.id}
-                  disabled={Boolean(assigningDriverId)}
-                  variant="outline"
-                  style={styles.driverButton}
-                />
-              ))
+                  <AppButton
+                    key={driver.id}
+                    title={driver.name}
+                    onPress={() => handleAssignDriver(driver.id)}
+                    loading={assigningDriverId === driver.id}
+                    disabled={Boolean(assigningDriverId) || !driverPicker?.destinationBranchId}
+                    variant="outline"
+                    style={styles.driverButton}
+                  />
+                ))
             )}
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={() => setDriverPicker(null)} disabled={Boolean(assigningDriverId)}>
@@ -357,4 +482,11 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 16, fontWeight: '700', padding: spacing.sm },
   saveButton: { minWidth: 120 },
   driverButton: { minHeight: 44, marginBottom: spacing.sm },
+  fulfillmentModes: { gap: spacing.sm, marginBottom: spacing.md },
+  modeButton: { minHeight: 40 },
+  modeButtonText: { fontSize: 13 },
+  fieldLabel: { fontSize: 13, fontWeight: '800', marginBottom: spacing.xs },
+  branchScroll: { maxHeight: 48, marginBottom: spacing.md },
+  branchButton: { marginRight: spacing.sm, minHeight: 40, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
+  branchButtonText: { fontSize: 12 },
 });
