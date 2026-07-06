@@ -55,6 +55,9 @@ const systemUsers = [
   { username: 'warehouse', role: 'warehouse', fullName: 'Warehouse' },
   { username: 'finance', role: 'finance', fullName: 'Finance' },
   { username: 'driver', role: 'driver', fullName: 'Driver' },
+  { username: 'driver-1', role: 'driver', fullName: 'Driver 1' },
+  { username: 'driver-2', role: 'driver', fullName: 'Driver 2' },
+  { username: 'driver-3', role: 'driver', fullName: 'Driver 3' },
   { username: 'supplier', role: 'supplier', fullName: 'Supplier' },
 ];
 

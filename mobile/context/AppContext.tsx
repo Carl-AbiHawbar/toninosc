@@ -72,6 +72,7 @@ interface AppContextType {
   saveDraft: () => Promise<BranchOrder | null>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<{ ok: boolean; error?: string }>;
   updateOrderLineQuantity: (orderLineId: string, quantity: number, note: string) => Promise<{ ok: boolean; error?: string }>;
+  assignOrderToDriver: (orderId: string, driverUserId: string) => Promise<{ ok: boolean; error?: string }>;
   updateDeliveryStopStatus: (deliveryId: string, stopId: string, status: DeliveryStop['status']) => void;
   moveDeliveryStop: (deliveryId: string, stopId: string, direction: 'up' | 'down') => void;
   markInvoicePaid: (invoiceId: string) => void;
@@ -522,6 +523,137 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { ok: true };
     },
     [addAuditEvent, refreshData]
+  );
+
+  const assignOrderToDriver = useCallback(
+    async (orderId: string, driverUserId: string) => {
+      const order = orders.find((item) => item.id === orderId);
+      const driver = users.find((user) => user.id === driverUserId && user.role === 'driver' && user.active !== false);
+      const routeDate = getDateKey();
+
+      if (!order) return { ok: false, error: 'Order not found' };
+      if (!driver) return { ok: false, error: 'Driver not found' };
+
+      const { data: existingStops, error: existingStopsError } = await supabase
+        .from('delivery_stops')
+        .select('id, delivery_id')
+        .eq('order_id', orderId);
+
+      if (existingStopsError) {
+        setDataError(existingStopsError.message);
+        return { ok: false, error: existingStopsError.message };
+      }
+
+      const existingStopIds = (existingStops ?? []).map((stop) => stop.id);
+      const previousDeliveryIds = new Set((existingStops ?? []).map((stop) => stop.delivery_id));
+
+      if (existingStopIds.length > 0) {
+        const { error } = await supabase.from('delivery_stops').delete().in('id', existingStopIds);
+        if (error) {
+          setDataError(error.message);
+          return { ok: false, error: error.message };
+        }
+      }
+
+      const { data: deliveryRows, error: deliveryLookupError } = await supabase
+        .from('deliveries')
+        .select('id')
+        .eq('route_date', routeDate)
+        .eq('driver_user_id', driverUserId)
+        .limit(1);
+
+      if (deliveryLookupError) {
+        setDataError(deliveryLookupError.message);
+        return { ok: false, error: deliveryLookupError.message };
+      }
+
+      let deliveryId = deliveryRows?.[0]?.id as string | undefined;
+      if (!deliveryId) {
+        const { data: newDelivery, error } = await supabase
+          .from('deliveries')
+          .insert({
+            route_date: routeDate,
+            driver_user_id: driverUserId,
+            status: 'pending',
+          })
+          .select('id')
+          .single();
+
+        if (error) {
+          setDataError(error.message);
+          return { ok: false, error: error.message };
+        }
+        deliveryId = newDelivery.id;
+      }
+
+      if (!deliveryId) {
+        return { ok: false, error: 'Could not create delivery route' };
+      }
+
+      const { data: stops, error: stopsError } = await supabase
+        .from('delivery_stops')
+        .select('stop_number')
+        .eq('delivery_id', deliveryId);
+
+      if (stopsError) {
+        setDataError(stopsError.message);
+        return { ok: false, error: stopsError.message };
+      }
+
+      const nextStopNumber = Math.max(0, ...(stops ?? []).map((stop) => stop.stop_number ?? 0)) + 1;
+      const { error: stopInsertError } = await supabase.from('delivery_stops').insert({
+        delivery_id: deliveryId,
+        order_id: orderId,
+        branch_id: order.branchId,
+        stop_number: nextStopNumber,
+        status: 'pending',
+      });
+
+      if (stopInsertError) {
+        setDataError(stopInsertError.message);
+        return { ok: false, error: stopInsertError.message };
+      }
+
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({ status: 'out_for_delivery', updated_at: new Date().toISOString() })
+        .eq('id', orderId);
+
+      if (orderError) {
+        setDataError(orderError.message);
+        return { ok: false, error: orderError.message };
+      }
+
+      for (const previousDeliveryId of previousDeliveryIds) {
+        const { data: remainingStops } = await supabase
+          .from('delivery_stops')
+          .select('id')
+          .eq('delivery_id', previousDeliveryId)
+          .limit(1);
+
+        if ((remainingStops ?? []).length === 0 && previousDeliveryId !== deliveryId) {
+          await supabase.from('deliveries').delete().eq('id', previousDeliveryId);
+        }
+      }
+
+      addAuditEvent({
+        entityType: 'delivery',
+        entityId: deliveryId,
+        action: 'Order assigned to driver',
+        note: `${order.orderNumber} - ${driver.name}`,
+      });
+      addNotification({
+        userId: driverUserId,
+        role: 'driver',
+        title: 'New delivery assigned',
+        body: `${order.orderNumber} was added to your route.`,
+        targetRoute: '/(main)/driver-deliveries',
+      });
+
+      await refreshData();
+      return { ok: true };
+    },
+    [addAuditEvent, addNotification, orders, refreshData, users]
   );
 
   const updateDeliveryStopStatus = useCallback(
@@ -982,6 +1114,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         saveDraft,
         updateOrderStatus,
         updateOrderLineQuantity,
+        assignOrderToDriver,
         updateDeliveryStopStatus,
         moveDeliveryStop,
         markInvoicePaid,

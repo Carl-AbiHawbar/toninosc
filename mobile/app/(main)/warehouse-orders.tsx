@@ -27,7 +27,20 @@ const statusGroupLabelsAr: Record<string, string> = {
 };
 
 export default function WarehouseOrdersScreen() {
-  const { orders, branches, stockItems, inventory, updateOrderStatus, updateOrderLineQuantity, language, themeColors, t } = useApp();
+  const {
+    orders,
+    branches,
+    stockItems,
+    inventory,
+    users,
+    deliveries,
+    updateOrderStatus,
+    updateOrderLineQuantity,
+    assignOrderToDriver,
+    language,
+    themeColors,
+    t,
+  } = useApp();
   const [lineEditor, setLineEditor] = useState<{
     orderId: string;
     lineId: string;
@@ -35,6 +48,9 @@ export default function WarehouseOrdersScreen() {
     quantity: string;
     note: string;
   } | null>(null);
+  const [driverPicker, setDriverPicker] = useState<{ orderId: string } | null>(null);
+  const [assigningDriverId, setAssigningDriverId] = useState<string | null>(null);
+  const drivers = users.filter((user) => user.role === 'driver' && user.active !== false);
 
   const handleAction = async (orderId: string, status: OrderStatus) => {
     const result = await updateOrderStatus(orderId, status);
@@ -67,8 +83,30 @@ export default function WarehouseOrdersScreen() {
   };
 
   const activeWarehouseOrders = orders.filter((o) =>
-    ['submitted', 'approved', 'preparing', 'packed'].includes(o.status)
+    ['submitted', 'approved', 'preparing', 'packed', 'assigned_to_driver', 'out_for_delivery'].includes(o.status)
   );
+
+  const getAssignedDriver = (orderId: string) => {
+    const delivery = deliveries.find((item) => item.stops.some((stop) => stop.orderId === orderId));
+    return delivery ? users.find((user) => user.id === delivery.driverId) : undefined;
+  };
+
+  const handleAssignDriver = async (driverUserId: string) => {
+    if (!driverPicker) return;
+    setAssigningDriverId(driverUserId);
+    const result = await assignOrderToDriver(driverPicker.orderId, driverUserId);
+    setAssigningDriverId(null);
+
+    if (!result.ok) {
+      Alert.alert(
+        language === 'ar' ? 'Could not assign driver' : 'Could not assign driver',
+        result.error ?? (language === 'ar' ? 'Try again.' : 'Try again.')
+      );
+      return;
+    }
+
+    setDriverPicker(null);
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
@@ -89,6 +127,7 @@ export default function WarehouseOrdersScreen() {
               </Text>
               {groupOrders.map((order) => {
                 const branch = branches.find((b) => b.id === order.branchId);
+                const assignedDriver = getAssignedDriver(order.id);
                 return (
                   <AppCard key={order.id} style={styles.orderCard}>
                     <View style={styles.orderHeader}>
@@ -183,12 +222,18 @@ export default function WarehouseOrdersScreen() {
                       )}
                       {order.status === 'packed' && (
                         <AppButton
-                          title={t('assignDriver')}
-                          onPress={() => {
-                            handleAction(order.id, 'assigned_to_driver');
-                            handleAction(order.id, 'out_for_delivery');
-                          }}
+                          title={assignedDriver ? `${t('assignDriver')}: ${assignedDriver.name}` : t('assignDriver')}
+                          onPress={() => setDriverPicker({ orderId: order.id })}
                           style={styles.actionBtn}
+                        />
+                      )}
+                      {['assigned_to_driver', 'out_for_delivery'].includes(order.status) && (
+                        <AppButton
+                          title={assignedDriver ? `${t('assignDriver')}: ${assignedDriver.name}` : t('assignDriver')}
+                          onPress={() => setDriverPicker({ orderId: order.id })}
+                          variant="outline"
+                          style={styles.actionBtn}
+                          textStyle={styles.actionText}
                         />
                       )}
                     </View>
@@ -238,6 +283,41 @@ export default function WarehouseOrdersScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={!!driverPicker} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: themeColors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: themeColors.card }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+              {language === 'ar' ? 'Choose driver' : 'Choose driver'}
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
+              {language === 'ar' ? 'The order will appear in the selected driver route for today.' : 'The order will appear in the selected driver route for today.'}
+            </Text>
+            {drivers.length === 0 ? (
+              <Text style={[styles.empty, { color: themeColors.textSecondary }]}>
+                {language === 'ar' ? 'No drivers found.' : 'No drivers found.'}
+              </Text>
+            ) : (
+              drivers.map((driver) => (
+                <AppButton
+                  key={driver.id}
+                  title={driver.name}
+                  onPress={() => handleAssignDriver(driver.id)}
+                  loading={assigningDriverId === driver.id}
+                  disabled={Boolean(assigningDriverId)}
+                  variant="outline"
+                  style={styles.driverButton}
+                />
+              ))
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setDriverPicker(null)} disabled={Boolean(assigningDriverId)}>
+                <Text style={[styles.cancelText, { color: themeColors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -276,4 +356,5 @@ const styles = StyleSheet.create({
   modalButtons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
   cancelText: { fontSize: 16, fontWeight: '700', padding: spacing.sm },
   saveButton: { minWidth: 120 },
+  driverButton: { minHeight: 44, marginBottom: spacing.sm },
 });
