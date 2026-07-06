@@ -198,7 +198,7 @@ function getReadableError(error: unknown, fallback = 'Could not load live data')
 const defaultDeliveryBranchOrder = [
   'mansourieh',
   'sin-el-fil',
-  'dora',
+  'city-mall',
   'furn-el-chebbak',
   'bliss',
   'cola',

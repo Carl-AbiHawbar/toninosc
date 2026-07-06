@@ -28,7 +28,7 @@ const branchSlugs = [
   'chtoura',
   'cola',
   'dahye',
-  'dekwaneh',
+  'sin-el-fil',
   'dhour-chweir',
   'furn-el-chebbak',
   'jal-dib',

@@ -355,7 +355,7 @@ values
   ('Tonino Chtoura', 'chtoura', 'Chtoura branch', 'Chtoura', '+961 70 000 000', true, false),
   ('Tonino Cola', 'cola', 'Cola branch', 'Cola', '+961 70 000 000', true, false),
   ('Tonino Dahye', 'dahye', 'Dahye branch', 'Dahye', '+961 70 000 000', true, false),
-  ('Tonino Dekwaneh', 'dekwaneh', 'Dekwaneh branch', 'Dekwaneh', '+961 70 000 000', true, false),
+  ('Tonino Sin el Fil', 'sin-el-fil', 'Sin el Fil branch', 'Sin el Fil', '+961 70 000 000', true, false),
   ('Tonino Dhour Chweir', 'dhour-chweir', 'Dhour Chweir branch', 'Dhour Chweir', '+961 70 000 000', true, false),
   ('Tonino Furn el Chebbak', 'furn-el-chebbak', 'Furn el Chebbak branch', 'Furn el Chebbak', '+961 70 000 000', true, false),
   ('Tonino Jal Dib', 'jal-dib', 'Jal Dib branch', 'Jal Dib', '+961 70 000 000', true, false),
