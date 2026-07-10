@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Tonino Supply",
-    "slug": "tonino-supply",
+    "name": "tonino-sc",
+    "slug": "tonino-sc",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tonino-supply",
+    "scheme": "tonino-sc",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.toninocrepes.supply",
@@ -25,7 +25,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [

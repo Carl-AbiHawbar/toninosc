@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -76,6 +77,12 @@ export default function LoginScreen() {
         </View>
 
         <View style={[styles.header, { borderColor: themeColors.border }]}>
+          <Image
+            source={require('@/assets/images/tonino-logo.png')}
+            style={styles.brandLogo}
+            resizeMode="contain"
+            accessibilityLabel="Tonino Crepes & Waffles"
+          />
           <Text style={[styles.appName, { color: themeColors.primary }]}>{t('appName')}</Text>
           <Text style={[styles.tagline, { color: themeColors.textSecondary }, isArabic && styles.rtlText]}>{t('tagline')}</Text>
         </View>
@@ -155,6 +162,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
   toggleRow: {
     flexDirection: 'row',
@@ -172,15 +182,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   header: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: spacing.lg,
     marginTop: spacing.lg,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
   },
   appName: {
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: '800',
+    marginTop: spacing.sm,
+  },
+  brandLogo: {
+    width: '100%',
+    height: 150,
+    maxWidth: 420,
   },
   tagline: {
     fontSize: 16,

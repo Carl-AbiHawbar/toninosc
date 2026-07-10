@@ -6,7 +6,7 @@ const dictionaries: Record<Language, Record<string, TranslationValue>> = {
   en: {
     languageName: 'English',
     otherLanguage: 'العربية',
-    appName: 'Tonino Supply',
+    appName: 'tonino-sc',
     tagline: 'Internal supply & ordering portal',
     chooseRole: 'Choose your role to enter',
     enter: 'Enter →',
@@ -106,7 +106,7 @@ const dictionaries: Record<Language, Record<string, TranslationValue>> = {
   ar: {
     languageName: 'العربية',
     otherLanguage: 'English',
-    appName: 'Tonino Supply',
+    appName: 'tonino-sc',
     tagline: 'بوابة داخلية للطلبات والمخزون والتوصيل',
     chooseRole: 'اختر الدور للدخول',
     enter: 'دخول ←',

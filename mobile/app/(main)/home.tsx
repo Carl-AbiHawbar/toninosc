@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, SafeAreaView, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp, useDashboardStats } from '@/context/AppContext';
 import { AppButton } from '@/components/AppButton';
@@ -159,6 +159,12 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.background }]}>
       <ScrollView contentContainerStyle={styles.container}>
+        <Image
+          source={require('@/assets/images/tonino-wordmark.png')}
+          style={styles.brandWordmark}
+          resizeMode="contain"
+          accessibilityLabel="Tonino"
+        />
         <ScreenHeader
           title={t('hello', { name: currentUser.name.split(' ')[0] })}
           subtitle={
@@ -225,6 +231,12 @@ const styles = StyleSheet.create({
   container: {
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
+  },
+  brandWordmark: {
+    width: 170,
+    height: 52,
+    alignSelf: 'center',
+    marginBottom: spacing.md,
   },
   buttonStack: {
     gap: spacing.md,
